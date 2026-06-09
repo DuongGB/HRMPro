@@ -30,7 +30,7 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .username(user.getUsername())
                 .password(user.getPassword())
                 .authorities(user.getRoles().stream()
-                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getName()))
+                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getName().name()))
                         .collect(Collectors.toList()))
                 .build();
     }

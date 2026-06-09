@@ -71,7 +71,7 @@ public class AuthService {
         redisTemplate.opsForValue().set(redisKey, user.getUsername(), refreshExpirationMs, TimeUnit.MILLISECONDS);
 
         List<String> roles = user.getRoles().stream()
-                .map(Role::getName)
+                .map(role -> role.getName().name())
                 .collect(Collectors.toList());
 
         Long employeeId = user.getEmployee() != null ? user.getEmployee().getId() : null;
