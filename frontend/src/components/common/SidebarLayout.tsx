@@ -1,27 +1,32 @@
 import React, { useState } from "react";
-import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography, theme } from "antd";
-import {
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  UserOutlined,
-  DashboardOutlined,
-  TeamOutlined,
-  PartitionOutlined,
-  CalendarOutlined,
-  FormOutlined,
-  DollarOutlined,
-  BarChartOutlined,
-  NotificationOutlined,
-  UnlockOutlined,
-  LogoutOutlined,
-} from "@ant-design/icons";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { logout } from "../../store/slices/authSlice";
 import { usePermission } from "../../hooks/usePermission";
-
-const { Header, Sider, Content } = Layout;
-const { Text } = Typography;
+import { cn } from "@/lib/utils";
+import {
+  Menu as MenuIcon,
+  User,
+  LayoutDashboard,
+  Users,
+  Building2,
+  CalendarDays,
+  FileEdit,
+  CircleDollarSign,
+  BarChart4,
+  Megaphone,
+  Unlock,
+  LogOut,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 
 const SidebarLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -30,207 +35,170 @@ const SidebarLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { can } = usePermission();
-  const { token } = theme.useToken();
 
   const handleLogout = () => {
-    // Gọi API logout nếu cần, ở đây ta gọi dispatch trước
     dispatch(logout());
     navigate("/login");
   };
 
-  const userMenuItems = [
+  const menuItems = [
     {
-      key: "profile",
-      label: <Link to={`/employees/${user?.employeeId || ""}`}>Hồ sơ của tôi</Link>,
-      icon: <UserOutlined />,
-    },
-    {
-      key: "password",
-      label: <Link to="/change-password">Đổi mật khẩu</Link>,
-      icon: <UnlockOutlined />,
-    },
-    {
-      type: "divider" as const,
-    },
-    {
-      key: "logout",
-      label: "Đăng xuất",
-      icon: <LogoutOutlined />,
-      danger: true,
-      onClick: handleLogout,
+      key: "/",
+      icon: <LayoutDashboard size={20} />,
+      label: "Dashboard",
     },
   ];
 
-  // Xây dựng Menu Sidebar dựa trên phân quyền
-  const menuItems = [];
-
-  // Mọi người đều xem được Dashboard
-  menuItems.push({
-    key: "/",
-    icon: <DashboardOutlined />,
-    label: <Link to="/">Dashboard</Link>,
-  });
-
-  // Module Nhân sự
   if (can("employee:read")) {
     menuItems.push({
       key: "/employees",
-      icon: <TeamOutlined />,
-      label: <Link to="/employees">Nhân viên</Link>,
+      icon: <Users size={20} />,
+      label: "Nhân viên",
     });
   } else {
-    // Nhân viên bình thường chỉ xem profile của mình
     menuItems.push({
       key: `/employees/${user?.employeeId || ""}`,
-      icon: <UserOutlined />,
-      label: <Link to={`/employees/${user?.employeeId || ""}`}>Hồ sơ cá nhân</Link>,
+      icon: <User size={20} />,
+      label: "Hồ sơ cá nhân",
     });
   }
 
-  // Module Tổ chức
   if (can("organization:read")) {
     menuItems.push({
       key: "/organization",
-      icon: <PartitionOutlined />,
-      label: <Link to="/organization">Cơ cấu tổ chức</Link>,
+      icon: <Building2 size={20} />,
+      label: "Cơ cấu tổ chức",
     });
   }
 
-  // Module Chấm công
   menuItems.push({
     key: "/attendance",
-    icon: <CalendarOutlined />,
-    label: <Link to="/attendance">Chấm công</Link>,
+    icon: <CalendarDays size={20} />,
+    label: "Chấm công",
   });
 
-  // Module Nghỉ phép
   menuItems.push({
     key: "/leaves",
-    icon: <FormOutlined />,
-    label: <Link to="/leaves">Đơn xin nghỉ</Link>,
+    icon: <FileEdit size={20} />,
+    label: "Đơn xin nghỉ",
   });
 
-  // Module Tính lương
   menuItems.push({
     key: "/payroll",
-    icon: <DollarOutlined />,
-    label: <Link to="/payroll">Lương & Payslip</Link>,
+    icon: <CircleDollarSign size={20} />,
+    label: "Lương & Payslip",
   });
 
-  // Module Đánh giá hiệu suất
   menuItems.push({
     key: "/performance",
-    icon: <BarChartOutlined />,
-    label: <Link to="/performance">Đánh giá hiệu suất</Link>,
+    icon: <BarChart4 size={20} />,
+    label: "Đánh giá hiệu suất",
   });
 
-  // Module Tuyển dụng
   if (can("recruitment:read")) {
     menuItems.push({
       key: "/recruitment",
-      icon: <NotificationOutlined />,
-      label: <Link to="/recruitment">Tuyển dụng</Link>,
+      icon: <Megaphone size={20} />,
+      label: "Tuyển dụng",
     });
   }
 
   return (
-    <Layout style={{ minHeight: "100vh" }}>
-      <Sider
-        trigger={null}
-        collapsible
-        collapsed={collapsed}
-        theme="light"
-        style={{
-          boxShadow: "2px 0 8px 0 rgba(29,35,41,.05)",
-          zIndex: 10,
-        }}
+    <div className="flex h-screen bg-muted/40">
+      {/* Sider */}
+      <aside
+        className={cn(
+          "bg-background border-r transition-all duration-300 flex flex-col z-20",
+          collapsed ? "w-16" : "w-64"
+        )}
       >
-        <div
-          style={{
-            height: 64,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: collapsed ? "center" : "flex-start",
-            paddingLeft: collapsed ? 0 : 24,
-            borderBottom: "1px solid #f0f0f0",
-            transition: "all 0.2s",
-          }}
-        >
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 6,
-              background: token.colorPrimary,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#fff",
-              fontWeight: "bold",
-              fontSize: 16,
-            }}
-          >
+        <div className="h-16 flex items-center justify-center border-b px-4">
+          <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center text-primary-foreground font-bold shrink-0">
             H
           </div>
           {!collapsed && (
-            <span style={{ marginLeft: 12, fontWeight: "bold", fontSize: 18, color: token.colorPrimary }}>
+            <span className="ml-3 font-bold text-lg text-primary truncate whitespace-nowrap">
               HRMPro
             </span>
           )}
         </div>
-        <Menu
-          theme="light"
-          mode="inline"
-          selectedKeys={[location.pathname]}
-          items={menuItems}
-          style={{ borderRight: 0, marginTop: 8 }}
-        />
-      </Sider>
-      <Layout>
-        <Header
-          style={{
-            padding: "0 24px",
-            background: "#fff",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            boxShadow: "0 1px 4px rgba(0,21,41,.08)",
-            zIndex: 9,
-          }}
-        >
+        <nav className="flex-1 overflow-y-auto py-4 flex flex-col gap-1 px-2">
+          {menuItems.map((item) => {
+            const isActive = location.pathname === item.key || 
+                            (item.key !== "/" && location.pathname.startsWith(item.key));
+            return (
+              <Link
+                key={item.key}
+                to={item.key}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+                  isActive
+                    ? "bg-primary text-primary-foreground font-medium"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  collapsed && "justify-center"
+                )}
+                title={collapsed ? item.label : undefined}
+              >
+                <span className="shrink-0">{item.icon}</span>
+                {!collapsed && <span className="truncate">{item.label}</span>}
+              </Link>
+            );
+          })}
+        </nav>
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <header className="h-16 bg-background border-b flex items-center justify-between px-4 z-10 shrink-0">
           <Button
-            type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            variant="ghost"
+            size="icon"
             onClick={() => setCollapsed(!collapsed)}
-            style={{
-              fontSize: "16px",
-              width: 64,
-              height: 64,
-            }}
-          />
-          <Space size={24}>
-            <Dropdown menu={{ items: userMenuItems }} trigger={["click"]}>
-              <Space style={{ cursor: "pointer" }}>
-                <Avatar icon={<UserOutlined />} style={{ backgroundColor: token.colorPrimary }} />
-                <Text style={{ fontWeight: 500 }}>{user?.username}</Text>
-              </Space>
-            </Dropdown>
-          </Space>
-        </Header>
-        <Content
-          style={{
-            margin: "24px 16px",
-            padding: 24,
-            background: "#fff",
-            borderRadius: 8,
-            minHeight: 280,
-            overflow: "initial",
-          }}
-        >
+            className="text-muted-foreground"
+          >
+            <MenuIcon size={20} />
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="flex items-center gap-2 px-2 py-1 h-auto">
+                <Avatar className="w-8 h-8 border">
+                  <AvatarFallback className="bg-primary text-primary-foreground">
+                    {user?.username?.charAt(0).toUpperCase() || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="font-medium">{user?.username}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem asChild>
+                <Link to={`/employees/${user?.employeeId || ""}`} className="cursor-pointer w-full flex items-center">
+                  <User className="mr-2 h-4 w-4" />
+                  Hồ sơ của tôi
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/change-password" className="cursor-pointer w-full flex items-center">
+                  <Unlock className="mr-2 h-4 w-4" />
+                  Đổi mật khẩu
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
+                <LogOut className="mr-2 h-4 w-4" />
+                Đăng xuất
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </header>
+
+        {/* Scrollable Main Area */}
+        <main className="flex-1 overflow-auto p-4 md:p-6 bg-muted/20">
           <Outlet />
-        </Content>
-      </Layout>
-    </Layout>
+        </main>
+      </div>
+    </div>
   );
 };
 

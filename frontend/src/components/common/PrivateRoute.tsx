@@ -1,7 +1,7 @@
 import React from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAppSelector } from "../../store";
-import { Result, Button } from "antd";
+import { Button } from "@/components/ui/button";
 
 interface PrivateRouteProps {
   children: React.ReactNode;
@@ -11,6 +11,7 @@ interface PrivateRouteProps {
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ children, allowedRoles }) => {
   const { isAuthenticated, user } = useAppSelector((state) => state.auth);
   const location = useLocation();
+  const navigate = useNavigate();
 
   if (!isAuthenticated) {
     // Lưu lại vị trí trang hiện tại để sau khi đăng nhập xong tự động điều hướng quay lại
@@ -21,17 +22,15 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children, allowedRoles }) =
     const hasPermission = user.roles.some((role) => allowedRoles.includes(role));
     if (!hasPermission) {
       return (
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
-          <Result
-            status="403"
-            title="403"
-            subTitle="Xin lỗi, bạn không có quyền truy cập trang này."
-            extra={
-              <Button type="primary" onClick={() => window.history.back()}>
-                Quay lại
-              </Button>
-            }
-          />
+        <div className="flex flex-col justify-center items-center h-screen bg-muted/40">
+          <div className="text-center space-y-4">
+            <h1 className="text-6xl font-bold text-primary">403</h1>
+            <h2 className="text-2xl font-semibold tracking-tight">Từ chối truy cập</h2>
+            <p className="text-muted-foreground">Xin lỗi, bạn không có quyền truy cập trang này.</p>
+            <Button onClick={() => navigate(-1)} className="mt-4">
+              Quay lại
+            </Button>
+          </div>
         </div>
       );
     }

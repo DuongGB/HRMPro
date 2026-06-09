@@ -2,8 +2,7 @@ import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Provider as ReduxProvider } from "react-redux";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ConfigProvider } from "antd";
-import viVN from "antd/locale/vi_VN";
+import { Toaster } from "@/components/ui/sonner";
 
 import { store } from "./store";
 import PrivateRoute from "./components/common/PrivateRoute";
@@ -26,46 +25,36 @@ const App: React.FC = () => {
   return (
     <ReduxProvider store={store}>
       <QueryClientProvider client={queryClient}>
-        <ConfigProvider
-          locale={viVN}
-          theme={{
-            token: {
-              colorPrimary: "#1890ff", // Xanh công ty
-              borderRadius: 6,
-              fontFamily: "'Outfit', 'Inter', sans-serif",
-            },
-          }}
-        >
-          <BrowserRouter>
-            <Routes>
-              {/* Public Route */}
-              <Route path="/login" element={<LoginPage />} />
+        <BrowserRouter>
+          <Routes>
+            {/* Public Route */}
+            <Route path="/login" element={<LoginPage />} />
 
-              {/* Private Route bọc bởi Layout chính */}
+            {/* Private Route bọc bởi Layout chính */}
+            <Route
+              path="/"
+              element={
+                <PrivateRoute>
+                  <SidebarLayout />
+                </PrivateRoute>
+              }
+            >
+              <Route index element={<DashboardPage />} />
+              <Route path="change-password" element={<ChangePasswordPage />} />
+              
+              {/* Fallback cho các trang chưa phát triển */}
               <Route
-                path="/"
+                path="*"
                 element={
-                  <PrivateRoute>
-                    <SidebarLayout />
-                  </PrivateRoute>
+                  <div className="p-6 text-center">
+                    <h2 className="text-xl font-semibold">Trang đang được phát triển</h2>
+                  </div>
                 }
-              >
-                <Route index element={<DashboardPage />} />
-                <Route path="change-password" element={<ChangePasswordPage />} />
-                
-                {/* Fallback cho các trang chưa phát triển */}
-                <Route
-                  path="*"
-                  element={
-                    <div style={{ padding: 24, textAlign: "center" }}>
-                      <h2>Trang đang được phát triển</h2>
-                    </div>
-                  }
-                />
-              </Route>
-            </Routes>
-          </BrowserRouter>
-        </ConfigProvider>
+              />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+        <Toaster richColors position="top-right" />
       </QueryClientProvider>
     </ReduxProvider>
   );
