@@ -1,0 +1,122 @@
+version: "3.9"
+
+services:
+  # ─── PostgreSQL ───────────────────────────────
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: hrmpro-postgres
+  #   environment:
+  #     POSTGRES_DB: ${DB_NAME}
+  #     POSTGRES_USER: ${DB_USER}
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD}
+  #   ports:
+  #     - "${DB_PORT}:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./.agents/skills/references/db-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # ─── Redis ────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: hrmpro-redis
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+
+  # ─── MinIO ────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: hrmpro-minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+
+  # ─── MailHog (dev email catcher) ──────────────
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: hrmpro-mailhog
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI — xem email tại http://localhost:8025
+
+  # ─── Spring Boot Backend ──────────────────────
+  # backend:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   container_name: hrmpro-backend
+  #   environment:
+  #     SPRING_PROFILES_ACTIVE: docker
+  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+  #     SPRING_DATASOURCE_USERNAME: ${DB_USER}
+  #     SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+  #     SPRING_DATA_REDIS_HOST: redis
+  #     SPRING_DATA_REDIS_PORT: 6379
+  #     SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+  #     SPRING_MAIL_HOST: mailhog
+  #     SPRING_MAIL_PORT: 1025
+
+  #     # JWT
+  #     APP_JWT_SECRET: ${JWT_SECRET}
+  #     APP_JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
+  #     APP_JWT_REFRESH_EXPIRATION_MS: ${JWT_REFRESH_EXPIRATION_MS}
+
+  #     # MinIO
+  #     APP_MINIO_ENDPOINT: http://minio:9000
+  #     APP_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+  #     APP_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+  #     APP_MINIO_BUCKET_AVATARS: hrmpro-avatars
+  #     APP_MINIO_BUCKET_DOCUMENTS: hrmpro-documents
+  #     APP_MINIO_BUCKET_PAYSLIPS: hrmpro-payslips
+
+  #     # CORS
+  #     APP_CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+
+  #     # Payroll cron
+  #     APP_PAYROLL_CRON: ${PAYROLL_CRON}
+  #   ports:
+  #     - "8080:8080"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_started
+  #     minio:
+  #       condition: service_started
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./logs:/app/logs
+
+  # ─── React Frontend ───────────────────────────
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile.dev
+  #   container_name: hrmpro-frontend
+  #   environment:
+  #     VITE_API_BASE_URL: http://localhost:8080/api/v1
+  #     VITE_APP_NAME: HRMPro
+  #   ports:
+  #     - "5173:5173"
+  #   volumes:
+  #     - ./frontend/src:/app/src
+  #   depends_on:
+  #     - backend
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
