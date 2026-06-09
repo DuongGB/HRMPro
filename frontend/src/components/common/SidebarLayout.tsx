@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ModeToggle } from "@/components/mode-toggle";
 
 const SidebarLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -160,37 +161,40 @@ const SidebarLayout: React.FC = () => {
             <MenuIcon size={20} />
           </Button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-2 px-2 py-1 h-auto">
-                <Avatar className="w-8 h-8 border">
-                  <AvatarFallback className="bg-primary text-primary-foreground">
-                    {user?.username?.charAt(0).toUpperCase() || "U"}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="font-medium">{user?.username}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem asChild>
-                <Link to={`/employees/${user?.employeeId || ""}`} className="cursor-pointer w-full flex items-center">
-                  <User className="mr-2 h-4 w-4" />
-                  Hồ sơ của tôi
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/change-password" className="cursor-pointer w-full flex items-center">
-                  <Unlock className="mr-2 h-4 w-4" />
-                  Đổi mật khẩu
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
-                <LogOut className="mr-2 h-4 w-4" />
-                Đăng xuất
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-4">
+            <ModeToggle />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-2 px-2 py-1 h-auto rounded-full md:rounded-md">
+                  <Avatar className="w-8 h-8 border">
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      {user?.username?.charAt(0).toUpperCase() || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="font-medium hidden md:inline">{user?.username}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
+                  <Link to={`/employees/${user?.employeeId || ""}`} className="cursor-pointer w-full flex items-center">
+                    <User className="mr-2 h-4 w-4" />
+                    Hồ sơ của tôi
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/change-password" className="cursor-pointer w-full flex items-center">
+                    <Unlock className="mr-2 h-4 w-4" />
+                    Đổi mật khẩu
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Đăng xuất
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </header>
 
         {/* Scrollable Main Area */}
