@@ -11,13 +11,13 @@ import java.util.concurrent.Executor;
 @EnableAsync
 public class AsyncConfig {
 
-    @Bean(name = "mailExecutor")
-    public Executor mailExecutor() {
+    @Bean(name = "auditLogExecutor")
+    public Executor auditLogExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(2);
-        executor.setMaxPoolSize(10);
+        executor.setCorePoolSize(5);
+        executor.setMaxPoolSize(20);
         executor.setQueueCapacity(500);
-        executor.setThreadNamePrefix("MailSender-");
+        executor.setThreadNamePrefix("AuditLogAsync-");
         executor.initialize();
         return executor;
     }

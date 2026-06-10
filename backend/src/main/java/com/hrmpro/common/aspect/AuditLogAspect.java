@@ -3,7 +3,7 @@ package com.hrmpro.common.aspect;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.hrmpro.module.auth.entity.AuditLog;
-import com.hrmpro.module.auth.repository.AuditLogRepository;
+import com.hrmpro.module.auth.service.AuditLogService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +29,7 @@ import java.util.Map;
 @Slf4j
 public class AuditLogAspect {
 
-    private final AuditLogRepository auditLogRepository;
+    private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
 
     @Around("within(@org.springframework.web.bind.annotation.RestController *)")
@@ -88,7 +88,7 @@ public class AuditLogAspect {
                         .createdAt(LocalDateTime.now())
                         .build();
 
-                auditLogRepository.save(auditLog);
+                auditLogService.saveAuditLog(auditLog);
             } catch (Exception e) {
                 log.error("Không thể ghi audit log vào cơ sở dữ liệu: {}", e.getMessage());
             }
