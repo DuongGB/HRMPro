@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { logout } from "../../store/slices/authSlice";
-import { usePermission } from "../../hooks/usePermission";
 import { cn } from "@/lib/utils";
 import {
   Menu as MenuIcon,
@@ -36,7 +35,6 @@ const SidebarLayout: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
-  const { can } = usePermission();
 
   const handleLogout = () => {
     dispatch(logout());

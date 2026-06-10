@@ -1,24 +1,20 @@
 import React, { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { employeeApi, type ContractResponse } from "../api/employeeApi";
-import { organizationApi } from "../../organization/api/organizationApi";
-import { toast } from "sonner";
+import { employeeApi } from "../api/employeeApi";
+import { toastUtil } from "@/utils/toast";
 import { usePermission } from "../../../hooks/usePermission";
+import { useAppSelector } from "../../../store";
 import { 
   ArrowLeft, 
   Building, 
   Briefcase, 
-  Mail, 
-  Phone, 
   Calendar, 
   Camera, 
   ShieldAlert, 
-  FileText, 
   Plus, 
   Loader2, 
   Download, 
-  Trash2,
   CheckCircle2,
   Clock
 } from "lucide-react";
@@ -30,13 +26,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 
 const EmployeeDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const empId = Number(id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { hasAnyRole, user } = usePermission();
+  const { hasAnyRole } = usePermission();
+  const user = useAppSelector((state) => state.auth.user);
   
   // Kiểm tra quyền
   const isSelf = user?.employeeId === empId;
@@ -44,7 +43,6 @@ const EmployeeDetailPage: React.FC = () => {
   const canEditInfo = canManage || (hasAnyRole(["HR_STAFF"]) && !isSelf);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const docInputRef = useRef<HTMLInputElement>(null);
 
   // State Dialogs
   const [isContractOpen, setIsContractOpen] = useState(false);
@@ -120,22 +118,15 @@ const EmployeeDetailPage: React.FC = () => {
     queryFn: () => employeeApi.getContracts(empId),
   });
 
-  // Query: Danh sách phòng ban
-  const { data: departments = [] } = useQuery({
-    queryKey: ["flat-departments-detail"],
-    queryFn: organizationApi.getDepartments,
-    enabled: canEditInfo,
-  });
-
   // Mutation: Cập nhật nhân viên
   const updateMutation = useMutation({
     mutationFn: (data: any) => employeeApi.updateEmployee(empId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee", empId] });
-      toast.success("Cập nhật hồ sơ thành công!");
+      toastUtil.success("Cập nhật hồ sơ thành công!");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Cập nhật hồ sơ thất bại!");
+      toastUtil.error(error.message || "Cập nhật hồ sơ thất bại!");
     }
   });
 
@@ -144,10 +135,10 @@ const EmployeeDetailPage: React.FC = () => {
     mutationFn: (file: File) => employeeApi.updateAvatar(empId, file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee", empId] });
-      toast.success("Cập nhật ảnh đại diện thành công!");
+      toastUtil.success("Cập nhật ảnh đại diện thành công!");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Tải ảnh đại diện thất bại!");
+      toastUtil.error(error.message || "Tải ảnh đại diện thất bại!");
     }
   });
 
@@ -157,12 +148,12 @@ const EmployeeDetailPage: React.FC = () => {
       employeeApi.createContract(empId, req, file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contracts", empId] });
-      toast.success("Ký kết hợp đồng thành công!");
+      toastUtil.success("Ký kết hợp đồng thành công!");
       setIsContractOpen(false);
       resetContractForm();
     },
     onError: (error: any) => {
-      toast.error(error.message || "Tạo hợp đồng thất bại!");
+      toastUtil.error(error.message || "Tạo hợp đồng thất bại!");
     }
   });
 
@@ -171,11 +162,11 @@ const EmployeeDetailPage: React.FC = () => {
     mutationFn: (termDate: string) => employeeApi.terminateEmployee(empId, termDate),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee", empId] });
-      toast.success("Đã ghi nhận thôi việc nhân sự!");
+      toastUtil.success("Đã ghi nhận thôi việc nhân sự!");
       setIsTerminateOpen(false);
     },
     onError: (error: any) => {
-      toast.error(error.message || "Thao tác thất bại!");
+      toastUtil.error(error.message || "Thao tác thất bại!");
     }
   });
 
@@ -227,7 +218,7 @@ const EmployeeDetailPage: React.FC = () => {
   const handleCreateContract = (e: React.FormEvent) => {
     e.preventDefault();
     if (!contractNum || !contractStart || !baseSalary) {
-      toast.error("Vui lòng điền đủ thông tin hợp đồng bắt buộc");
+      toastUtil.error("Vui lòng điền đủ thông tin hợp đồng bắt buộc");
       return;
     }
 

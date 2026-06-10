@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { employeeApi } from "../api/employeeApi";
 import { organizationApi } from "../../organization/api/organizationApi";
-import { toast } from "sonner";
+import { toastUtil } from "@/utils/toast";
 import { usePermission } from "../../../hooks/usePermission";
 import { 
   Plus, 
@@ -115,12 +115,12 @@ const EmployeeListPage: React.FC = () => {
     mutationFn: employeeApi.createEmployee,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
-      toast.success("Tạo hồ sơ nhân viên mới thành công!");
+      toastUtil.success("Tạo hồ sơ nhân viên mới thành công!");
       setIsCreateOpen(false);
       resetCreateForm();
     },
     onError: (error: any) => {
-      toast.error(error.message || "Tạo hồ sơ nhân viên thất bại!");
+      toastUtil.error(error.message || "Tạo hồ sơ nhân viên thất bại!");
     }
   });
 
@@ -139,7 +139,7 @@ const EmployeeListPage: React.FC = () => {
   const handleCreateEmployee = (e: React.FormEvent) => {
     e.preventDefault();
     if (!empCode || !firstName || !lastName || !email || !hireDate) {
-      toast.error("Vui lòng nhập đầy đủ các trường bắt buộc");
+      toastUtil.error("Vui lòng nhập đầy đủ các trường bắt buộc");
       return;
     }
 
