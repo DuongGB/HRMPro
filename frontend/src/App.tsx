@@ -15,6 +15,9 @@ import ChangePasswordPage from "./modules/auth/pages/ChangePasswordPage";
 import UserManagementPage from "./modules/users/pages/UserManagementPage";
 import UnauthorizedPage from "./components/common/UnauthorizedPage";
 import NotFoundPage from "./components/common/NotFoundPage";
+import OrgChartPage from "./modules/organization/pages/OrgChartPage";
+import EmployeeListPage from "./modules/employee/pages/EmployeeListPage";
+import EmployeeDetailPage from "./modules/employee/pages/EmployeeDetailPage";
 
 // Khởi tạo Query Client cho React Query
 const queryClient = new QueryClient({
@@ -57,6 +60,20 @@ const App: React.FC = () => {
                     </RoleProtectedRoute>
                   }
                 />
+
+                {/* Phân hệ Phòng ban / Sơ đồ tổ chức */}
+                <Route path="organization" element={<OrgChartPage />} />
+
+                {/* Phân hệ Hồ sơ nhân viên */}
+                <Route
+                  path="employees"
+                  element={
+                    <RoleProtectedRoute allowedRoles={["SUPER_ADMIN", "HR_ADMIN", "HR_STAFF", "MANAGER"]}>
+                      <EmployeeListPage />
+                    </RoleProtectedRoute>
+                  }
+                />
+                <Route path="employees/:id" element={<EmployeeDetailPage />} />
 
                 {/* Các trang lỗi */}
                 <Route path="403" element={<UnauthorizedPage />} />
