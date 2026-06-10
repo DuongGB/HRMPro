@@ -5,7 +5,7 @@ import * as z from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Lock, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toastUtil } from "@/utils/toast";
 
 import { authApi } from "../api/authApi";
 import type { ChangePasswordRequest } from "../types";
@@ -52,12 +52,12 @@ const ChangePasswordPage: React.FC = () => {
   const changePwdMutation = useMutation({
     mutationFn: (data: ChangePasswordRequest) => authApi.changePassword(data),
     onSuccess: () => {
-      toast.success("Thay đổi mật khẩu thành công!");
+      toastUtil.success("Thay đổi mật khẩu thành công!");
       form.reset();
       navigate("/");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Thay đổi mật khẩu thất bại, vui lòng thử lại!");
+      toastUtil.error(error.message || "Thay đổi mật khẩu thất bại, vui lòng thử lại!");
     },
   });
 
