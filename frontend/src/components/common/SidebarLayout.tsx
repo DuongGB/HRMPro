@@ -17,6 +17,7 @@ import {
   Megaphone,
   Unlock,
   LogOut,
+  Settings,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -50,13 +51,16 @@ const SidebarLayout: React.FC = () => {
     },
   ];
 
-  if (can("employee:read")) {
+  const roles = user?.roles || [];
+
+  // 1. Phân hệ Nhân viên / Hồ sơ cá nhân
+  if (roles.some(r => ["SUPER_ADMIN", "HR_ADMIN", "HR_STAFF", "MANAGER"].includes(r))) {
     menuItems.push({
       key: "/employees",
       icon: <Users size={20} />,
       label: "Nhân viên",
     });
-  } else {
+  } else if (roles.includes("EMPLOYEE")) {
     menuItems.push({
       key: `/employees/${user?.employeeId || ""}`,
       icon: <User size={20} />,
@@ -64,43 +68,64 @@ const SidebarLayout: React.FC = () => {
     });
   }
 
-  if (can("organization:read")) {
+  // 2. Phân hệ Cơ cấu tổ chức (Mọi vai trò đều xem được sơ đồ tổ chức)
+  menuItems.push({
+    key: "/organization",
+    icon: <Building2 size={20} />,
+    label: "Cơ cấu tổ chức",
+  });
+
+  // 3. Phân hệ Chấm công (Trừ Recruiter)
+  if (roles.some(r => ["SUPER_ADMIN", "HR_ADMIN", "HR_STAFF", "MANAGER", "EMPLOYEE"].includes(r))) {
     menuItems.push({
-      key: "/organization",
-      icon: <Building2 size={20} />,
-      label: "Cơ cấu tổ chức",
+      key: "/attendance",
+      icon: <CalendarDays size={20} />,
+      label: "Chấm công",
     });
   }
 
-  menuItems.push({
-    key: "/attendance",
-    icon: <CalendarDays size={20} />,
-    label: "Chấm công",
-  });
+  // 4. Phân hệ Nghỉ phép (Trừ Recruiter)
+  if (roles.some(r => ["SUPER_ADMIN", "HR_ADMIN", "HR_STAFF", "MANAGER", "EMPLOYEE"].includes(r))) {
+    menuItems.push({
+      key: "/leaves",
+      icon: <FileEdit size={20} />,
+      label: "Đơn xin nghỉ",
+    });
+  }
 
-  menuItems.push({
-    key: "/leaves",
-    icon: <FileEdit size={20} />,
-    label: "Đơn xin nghỉ",
-  });
+  // 5. Phân hệ Lương & Payslip (Chỉ Super Admin, HR Admin, Employee)
+  if (roles.some(r => ["SUPER_ADMIN", "HR_ADMIN", "EMPLOYEE"].includes(r))) {
+    menuItems.push({
+      key: "/payroll",
+      icon: <CircleDollarSign size={20} />,
+      label: "Lương & Payslip",
+    });
+  }
 
-  menuItems.push({
-    key: "/payroll",
-    icon: <CircleDollarSign size={20} />,
-    label: "Lương & Payslip",
-  });
+  // 6. Phân hệ Đánh giá hiệu suất (Trừ Super Admin, Recruiter)
+  if (roles.some(r => ["HR_ADMIN", "HR_STAFF", "MANAGER", "EMPLOYEE"].includes(r))) {
+    menuItems.push({
+      key: "/performance",
+      icon: <BarChart4 size={20} />,
+      label: "Đánh giá hiệu suất",
+    });
+  }
 
-  menuItems.push({
-    key: "/performance",
-    icon: <BarChart4 size={20} />,
-    label: "Đánh giá hiệu suất",
-  });
-
-  if (can("recruitment:read")) {
+  // 7. Phân hệ Tuyển dụng (Chỉ HR Admin, Manager, Recruiter)
+  if (roles.some(r => ["HR_ADMIN", "MANAGER", "RECRUITER"].includes(r))) {
     menuItems.push({
       key: "/recruitment",
       icon: <Megaphone size={20} />,
       label: "Tuyển dụng",
+    });
+  }
+
+  // 8. Quản lý tài khoản (Chỉ dành cho SUPER_ADMIN)
+  if (roles.includes("SUPER_ADMIN")) {
+    menuItems.push({
+      key: "/users",
+      icon: <Settings size={20} />,
+      label: "Quản lý tài khoản",
     });
   }
 

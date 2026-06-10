@@ -7,10 +7,14 @@ import { ThemeProvider } from "@/components/theme-provider";
 
 import { store } from "./store";
 import PrivateRoute from "./components/common/PrivateRoute";
+import RoleProtectedRoute from "./components/common/RoleProtectedRoute";
 import SidebarLayout from "./components/common/SidebarLayout";
 import LoginPage from "./modules/auth/pages/LoginPage";
 import DashboardPage from "./modules/dashboard/pages/DashboardPage";
 import ChangePasswordPage from "./modules/auth/pages/ChangePasswordPage";
+import UserManagementPage from "./modules/users/pages/UserManagementPage";
+import UnauthorizedPage from "./components/common/UnauthorizedPage";
+import NotFoundPage from "./components/common/NotFoundPage";
 
 // Khởi tạo Query Client cho React Query
 const queryClient = new QueryClient({
@@ -44,15 +48,22 @@ const App: React.FC = () => {
                 <Route index element={<DashboardPage />} />
                 <Route path="change-password" element={<ChangePasswordPage />} />
                 
-                {/* Fallback cho các trang chưa phát triển */}
+                {/* Router Quản lý tài khoản (Super Admin) */}
                 <Route
-                  path="*"
+                  path="users"
                   element={
-                    <div className="p-6 text-center">
-                      <h2 className="text-xl font-semibold">Trang đang được phát triển</h2>
-                    </div>
+                    <RoleProtectedRoute allowedRoles={["SUPER_ADMIN"]}>
+                      <UserManagementPage />
+                    </RoleProtectedRoute>
                   }
                 />
+
+                {/* Các trang lỗi */}
+                <Route path="403" element={<UnauthorizedPage />} />
+                <Route path="404" element={<NotFoundPage />} />
+                
+                {/* Fallback cho các trang chưa phát triển */}
+                <Route path="*" element={<NotFoundPage />} />
               </Route>
             </Routes>
           </BrowserRouter>
