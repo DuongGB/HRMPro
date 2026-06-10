@@ -13,7 +13,9 @@ import {
   Loader2,
   Shield,
   Check,
-  X
+  X,
+  HelpCircle,
+  BookOpen
 } from "lucide-react";
 import {
   Table,
@@ -45,6 +47,15 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const ROLE_OPTIONS = [
   { value: "SUPER_ADMIN", label: "Super Admin", color: "bg-red-500/10 text-red-500 border-red-500/20" },
@@ -54,6 +65,33 @@ const ROLE_OPTIONS = [
   { value: "EMPLOYEE", label: "Employee", color: "bg-slate-500/10 text-slate-500 border-slate-500/20" },
   { value: "RECRUITER", label: "Recruiter", color: "bg-green-500/10 text-green-500 border-green-500/20" }
 ];
+
+const ROLE_DESCRIPTIONS: Record<string, { desc: string; target: string }> = {
+  SUPER_ADMIN: {
+    desc: "Quản trị viên cấp cao nhất. Có toàn quyền kiểm soát hệ thống, quản lý tài khoản, cấu hình tổ chức và xem lịch sử hoạt động (audit logs) toàn diện.",
+    target: "Thành viên Ban Giám đốc, Quản trị viên IT hệ thống."
+  },
+  HR_ADMIN: {
+    desc: "Quản trị viên Nhân sự. Quản lý toàn bộ hồ sơ nhân sự, sơ đồ tổ chức, cơ cấu phòng ban và thực hiện các thiết lập nhân sự chung.",
+    target: "Trưởng phòng Nhân sự, Trưởng nhóm Tuyển dụng/C&B."
+  },
+  HR_STAFF: {
+    desc: "Nhân viên Nhân sự. Thực hiện các công việc nghiệp vụ nhân sự hàng ngày như cập nhật thông tin hồ sơ nhân sự, xem danh sách nhân sự.",
+    target: "Chuyên viên Nhân sự, Chuyên viên C&B."
+  },
+  MANAGER: {
+    desc: "Quản lý bộ phận. Có quyền quản lý trực tiếp và duyệt các yêu cầu (ví dụ: nghỉ phép) của các nhân viên thuộc phòng ban/nhóm của mình quản lý.",
+    target: "Trưởng phòng ban, Trưởng nhóm (Team Leader)."
+  },
+  EMPLOYEE: {
+    desc: "Nhân viên thông thường. Chỉ có quyền truy cập thông tin cá nhân của mình, tạo các yêu cầu cá nhân (nghỉ phép, phúc lợi) để gửi lên quản lý.",
+    target: "Toàn thể cán bộ nhân viên trong công ty."
+  },
+  RECRUITER: {
+    desc: "Chuyên viên tuyển dụng. Quản lý các tin tuyển dụng và xử lý hồ sơ ứng viên, đặt lịch phỏng vấn và đánh giá ứng viên.",
+    target: "Chuyên viên Tuyển dụng (Recruitment Specialist)."
+  }
+};
 
 interface Permission {
   code: string;
@@ -123,6 +161,16 @@ const UserManagementPage: React.FC = () => {
   const [isResetOpen, setIsResetOpen] = useState(false);
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserResponse | null>(null);
+
+  const scrollToRoleManual = (roleValue: string) => {
+    // Đợi modal mount xong hoặc dùng setTimeout
+    setTimeout(() => {
+      const element = document.getElementById(`manual-${roleValue}`);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 100);
+  };
 
   // Form State Tạo mới
   const [username, setUsername] = useState("");
@@ -258,6 +306,107 @@ const UserManagementPage: React.FC = () => {
           <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw size={16} className={isFetching ? "animate-spin" : ""} />
           </Button>
+
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" className="flex items-center gap-2">
+                <HelpCircle size={16} />
+                Hướng dẫn phân quyền
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="sm:max-w-[540px] overflow-hidden flex flex-col">
+              <SheetHeader className="pb-4 border-b">
+                <SheetTitle className="flex items-center gap-2 text-lg font-bold">
+                  <BookOpen className="text-primary h-5 w-5" />
+                  Cẩm nang phân quyền HRMPro
+                </SheetTitle>
+                <SheetDescription>
+                  Hướng dẫn chi tiết về các vai trò hệ thống (Roles) và các quyền hạn (Permissions) tương ứng.
+                </SheetDescription>
+              </SheetHeader>
+              
+              <div className="flex flex-col h-[calc(100vh-120px)] mt-4">
+                {/* Quick links */}
+                <div className="bg-muted/30 border rounded-lg p-3 mb-4 shrink-0">
+                  <span className="text-xs font-semibold text-muted-foreground block mb-2">Xem nhanh vai trò:</span>
+                  <div className="flex flex-wrap gap-2">
+                    {ROLE_OPTIONS.map(role => (
+                      <button
+                        key={role.value}
+                        onClick={() => scrollToRoleManual(role.value)}
+                        className="text-left"
+                      >
+                        <Badge 
+                          variant="outline" 
+                          className={`text-[10px] font-semibold cursor-pointer hover:opacity-80 transition-all border ${role.color}`}
+                        >
+                          {role.label}
+                        </Badge>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Scroll Area containing manual */}
+                <ScrollArea className="flex-1 pr-3 pb-8">
+                  <div className="space-y-6">
+                    {ROLE_OPTIONS.map(role => {
+                      const descInfo = ROLE_DESCRIPTIONS[role.value];
+                      const permissions = ROLE_PERMISSIONS_MAP[role.value] || [];
+                      
+                      return (
+                        <div 
+                          key={role.value} 
+                          id={`manual-${role.value}`} 
+                          className="border rounded-xl p-4 bg-background shadow-sm space-y-3 scroll-mt-4"
+                        >
+                          {/* Header */}
+                          <div className="flex items-center justify-between border-b pb-2">
+                            <span className="font-bold text-foreground">{role.label}</span>
+                            <Badge variant="outline" className={`text-[10px] ${role.color}`}>
+                              {role.value}
+                            </Badge>
+                          </div>
+                          
+                          {/* Desc */}
+                          <div className="text-xs space-y-1">
+                            <p className="text-muted-foreground leading-relaxed">
+                              <span className="font-semibold text-foreground">Mô tả:</span> {descInfo?.desc}
+                            </p>
+                            <p className="text-muted-foreground leading-relaxed">
+                              <span className="font-semibold text-foreground">Đối tượng:</span> {descInfo?.target}
+                            </p>
+                          </div>
+
+                          {/* Permissions list */}
+                          <div className="space-y-1.5">
+                            <span className="text-xs font-semibold text-foreground block">Quyền hạn chi tiết ({permissions.length}):</span>
+                            <div className="grid grid-cols-1 gap-2">
+                              {permissions.map(permCode => {
+                                const perm = PERMISSIONS_LIST.find(p => p.code === permCode);
+                                if (!perm) return null;
+                                return (
+                                  <div key={permCode} className="flex items-start gap-2 bg-muted/40 p-2 rounded-md border border-muted/20">
+                                    <div className="mt-0.5 rounded-full p-0.5 bg-emerald-500/10 text-emerald-600">
+                                      <Check size={10} className="stroke-[3]" />
+                                    </div>
+                                    <div className="space-y-0.5">
+                                      <span className="text-[11px] font-semibold text-foreground block">{perm.name}</span>
+                                      <span className="text-[9px] text-muted-foreground block">{perm.description}</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              </div>
+            </SheetContent>
+          </Sheet>
 
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
