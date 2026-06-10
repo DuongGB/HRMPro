@@ -10,7 +10,10 @@ import {
   UserX, 
   KeyRound, 
   RefreshCw,
-  Loader2
+  Loader2,
+  Shield,
+  Check,
+  X
 } from "lucide-react";
 import {
   Table,
@@ -41,6 +44,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 
 const ROLE_OPTIONS = [
   { value: "SUPER_ADMIN", label: "Super Admin", color: "bg-red-500/10 text-red-500 border-red-500/20" },
@@ -51,12 +55,73 @@ const ROLE_OPTIONS = [
   { value: "RECRUITER", label: "Recruiter", color: "bg-green-500/10 text-green-500 border-green-500/20" }
 ];
 
+interface Permission {
+  code: string;
+  name: string;
+  description: string;
+  category: string;
+}
+
+const PERMISSIONS_LIST: Permission[] = [
+  // Hệ thống
+  { code: "SYS_USER_MANAGE", name: "Quản lý tài khoản", description: "Tạo mới, khóa/mở khóa tài khoản, reset mật khẩu", category: "Hệ thống" },
+  { code: "SYS_AUDIT_LOG", name: "Xem lịch sử hệ thống (Audit Logs)", description: "Xem nhật ký hoạt động hệ thống", category: "Hệ thống" },
+  
+  // Nhân sự
+  { code: "HR_EMP_VIEW", name: "Xem hồ sơ nhân sự", description: "Xem thông tin hồ sơ nhân viên toàn công ty", category: "Nhân sự" },
+  { code: "HR_EMP_MANAGE", name: "Quản lý hồ sơ nhân sự", description: "Tạo mới, cập nhật thông tin hồ sơ nhân viên", category: "Nhân sự" },
+  { code: "HR_ORG_MANAGE", name: "Quản lý sơ đồ tổ chức", description: "Thiết lập phòng ban, chức vụ, bộ phận", category: "Nhân sự" },
+  
+  // Tuyển dụng
+  { code: "REC_POST_MANAGE", name: "Quản lý tin tuyển dụng", description: "Đăng tin, cập nhật tin tuyển dụng", category: "Tuyển dụng" },
+  { code: "REC_CV_MANAGE", name: "Quản lý hồ sơ ứng viên", description: "Tiếp nhận hồ sơ, đánh giá, xếp lịch phỏng vấn", category: "Tuyển dụng" },
+  
+  // Lương thưởng
+  { code: "PAY_VIEW_ALL", name: "Xem bảng lương toàn công ty", description: "Xem thông tin lương, phụ cấp của nhân viên", category: "Lương thưởng" },
+  { code: "PAY_MANAGE", name: "Tính lương & Phúc lợi", description: "Thiết lập bảng lương, tính lương hàng tháng", category: "Lương thưởng" },
+  
+  // Phê duyệt & Cá nhân
+  { code: "SELF_LEAVE_REQUEST", name: "Đăng ký nghỉ phép", description: "Tạo yêu cầu nghỉ phép cá nhân", category: "Phê duyệt" },
+  { code: "MGR_LEAVE_APPROVE", name: "Phê duyệt phép", description: "Duyệt yêu cầu nghỉ phép của nhân viên thuộc quyền quản lý", category: "Phê duyệt" },
+  { code: "MGR_TEAM_VIEW", name: "Xem hồ sơ nhóm", description: "Xem hồ sơ nhân viên thuộc phòng ban quản lý", category: "Phê duyệt" },
+];
+
+const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
+  SUPER_ADMIN: [
+    "SYS_USER_MANAGE", "SYS_AUDIT_LOG", 
+    "HR_EMP_VIEW", "HR_EMP_MANAGE", "HR_ORG_MANAGE", 
+    "REC_POST_MANAGE", "REC_CV_MANAGE", 
+    "PAY_VIEW_ALL", "PAY_MANAGE", 
+    "SELF_LEAVE_REQUEST", "MGR_LEAVE_APPROVE", "MGR_TEAM_VIEW"
+  ],
+  HR_ADMIN: [
+    "HR_EMP_VIEW", "HR_EMP_MANAGE", "HR_ORG_MANAGE", 
+    "SELF_LEAVE_REQUEST"
+  ],
+  HR_STAFF: [
+    "HR_EMP_VIEW", "HR_EMP_MANAGE",
+    "SELF_LEAVE_REQUEST"
+  ],
+  MANAGER: [
+    "HR_EMP_VIEW", 
+    "SELF_LEAVE_REQUEST", "MGR_LEAVE_APPROVE", "MGR_TEAM_VIEW"
+  ],
+  EMPLOYEE: [
+    "SELF_LEAVE_REQUEST"
+  ],
+  RECRUITER: [
+    "REC_POST_MANAGE", "REC_CV_MANAGE",
+    "SELF_LEAVE_REQUEST"
+  ]
+};
+
 const UserManagementPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isResetOpen, setIsResetOpen] = useState(false);
+  const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserResponse | null>(null);
 
   // Form State Tạo mới
@@ -368,6 +433,18 @@ const UserManagementPage: React.FC = () => {
                       <Button
                         variant="ghost"
                         size="icon"
+                        title="Xem chi tiết quyền"
+                        onClick={() => {
+                          setSelectedUser(user);
+                          setIsPermissionsOpen(true);
+                        }}
+                      >
+                        <Shield size={16} className="text-muted-foreground hover:text-primary" />
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         title="Đặt lại mật khẩu"
                         onClick={() => {
                           setSelectedUser(user);
@@ -467,6 +544,94 @@ const UserManagementPage: React.FC = () => {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog View Permissions */}
+      <Dialog open={isPermissionsOpen} onOpenChange={setIsPermissionsOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+              <Shield className="text-primary h-5 w-5" />
+              Chi tiết quyền hạn tài khoản
+            </DialogTitle>
+            <DialogDescription>
+              Danh sách các quyền hạn được cấp của tài khoản{" "}
+              <span className="font-semibold text-foreground">@{selectedUser?.username}</span> dựa trên các vai trò hệ thống.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* User Roles info */}
+            <div>
+              <Label className="text-sm font-semibold block mb-2 text-muted-foreground">Vai trò hiện tại</Label>
+              <div className="flex flex-wrap gap-2">
+                {selectedUser?.roles.map(roleVal => {
+                  const opt = ROLE_OPTIONS.find(o => o.value === roleVal);
+                  return (
+                    <Badge 
+                      key={roleVal} 
+                      variant="outline" 
+                      className={`text-xs font-semibold px-2.5 py-1 border ${opt?.color || ""}`}
+                    >
+                      {opt?.label || roleVal}
+                    </Badge>
+                  );
+                })}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Permissions by Category */}
+            <div className="space-y-4">
+              <Label className="text-sm font-semibold block text-muted-foreground">Danh mục quyền chi tiết</Label>
+              
+              {/* Grouping permissions */}
+              {["Hệ thống", "Nhân sự", "Tuyển dụng", "Lương thưởng", "Phê duyệt"].map((category) => {
+                const categoryPermissions = PERMISSIONS_LIST.filter(p => p.category === category);
+                return (
+                  <div key={category} className="space-y-2 border rounded-lg p-3 bg-muted/10">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">{category}</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {categoryPermissions.map(permission => {
+                        const isGranted = selectedUser?.roles.some(role => 
+                          ROLE_PERMISSIONS_MAP[role]?.includes(permission.code)
+                        );
+                        return (
+                          <div 
+                            key={permission.code} 
+                            className={`flex items-start space-x-2.5 p-2 rounded-md transition-all border ${
+                              isGranted 
+                                ? "bg-emerald-500/5 border-emerald-500/10" 
+                                : "bg-muted/30 border-transparent opacity-60"
+                            }`}
+                          >
+                            <div className={`mt-0.5 rounded-full p-0.5 ${
+                              isGranted ? "bg-emerald-500/15 text-emerald-600" : "bg-muted text-muted-foreground"
+                            }`}>
+                              {isGranted ? <Check size={12} className="stroke-[3]" /> : <X size={12} />}
+                            </div>
+                            <div className="space-y-0.5">
+                              <span className={`text-xs font-semibold block ${isGranted ? "text-foreground" : "text-muted-foreground line-through decoration-muted-foreground/30"}`}>
+                                {permission.name}
+                              </span>
+                              <p className="text-[10px] text-muted-foreground leading-normal font-normal">
+                                {permission.description}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <DialogFooter className="pt-2">
+            <Button type="button" onClick={() => setIsPermissionsOpen(false)} className="w-full sm:w-auto">Đóng</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
