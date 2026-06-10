@@ -20,6 +20,7 @@ export interface DepartmentRequest {
   parentId?: number | null;
   managerId?: number | null;
   description?: string;
+  childrenIds?: number[];
 }
 
 export interface PositionResponse {

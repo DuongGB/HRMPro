@@ -26,9 +26,6 @@ public class DepartmentService {
     private final DepartmentRepository departmentRepository;
     private final EmployeeRepository employeeRepository;
 
-    /**
-     * Lấy cấu trúc cây (Tree) của tất cả các phòng ban phục vụ Org Chart
-     */
     @Transactional(readOnly = true)
     public List<DepartmentResponse> getDepartmentTree() {
         List<Department> allDepts = departmentRepository.findAll();
@@ -41,10 +38,17 @@ public class DepartmentService {
                 ));
 
         List<DepartmentResponse> rootDepartments = new ArrayList<>();
+        DepartmentResponse execDept = null;
 
         // Xây dựng liên kết cha-con
         for (Department dept : allDepts) {
             DepartmentResponse currentResponse = responseMap.get(dept.getId());
+            
+            // Tìm kiếm ban giám đốc
+            if ("DEP-EXEC".equalsIgnoreCase(dept.getCode())) {
+                execDept = currentResponse;
+            }
+
             if (dept.getParentId() == null) {
                 rootDepartments.add(currentResponse);
             } else {
@@ -59,6 +63,25 @@ public class DepartmentService {
                     rootDepartments.add(currentResponse);
                 }
             }
+        }
+
+        // Tái cấu trúc: Nếu có Ban Giám đốc, các root khác sẽ làm con của Ban Giám đốc
+        if (execDept != null) {
+            List<DepartmentResponse> finalRoots = new ArrayList<>();
+            finalRoots.add(execDept);
+
+            for (DepartmentResponse root : rootDepartments) {
+                if (!root.getId().equals(execDept.getId())) {
+                    if (execDept.getChildren() == null) {
+                        execDept.setChildren(new ArrayList<>());
+                    }
+                    // Đặt lại parentId và parentName để hiển thị chính xác
+                    root.setParentId(execDept.getId());
+                    root.setParentName(execDept.getName());
+                    execDept.getChildren().add(root);
+                }
+            }
+            return finalRoots;
         }
 
         return rootDepartments;
@@ -103,6 +126,18 @@ public class DepartmentService {
 
         Department saved = departmentRepository.save(department);
         log.info("Đã tạo phòng ban mới: {} - {}", saved.getCode(), saved.getName());
+
+        // Cập nhật các phòng ban con nếu có gửi kèm trong create
+        if (request.getChildrenIds() != null) {
+            for (Long childId : request.getChildrenIds()) {
+                departmentRepository.findById(childId).ifPresent(child -> {
+                    child.setParentId(saved.getId());
+                    child.setUpdatedAt(LocalDateTime.now());
+                    departmentRepository.save(child);
+                });
+            }
+        }
+
         return convertToResponseWithNoChildren(saved);
     }
 
@@ -134,6 +169,36 @@ public class DepartmentService {
         department.setManagerId(request.getManagerId());
         department.setDescription(request.getDescription());
         department.setUpdatedAt(LocalDateTime.now());
+
+        // Cập nhật các phòng ban con
+        if (request.getChildrenIds() != null) {
+            if (request.getChildrenIds().contains(id)) {
+                throw new AppException("Phòng ban con không thể là chính nó", HttpStatus.BAD_REQUEST);
+            }
+
+            List<Department> allDepartments = departmentRepository.findAll();
+            Map<Long, Department> deptMap = allDepartments.stream()
+                    .collect(Collectors.toMap(Department::getId, d -> d));
+
+            // Set parentId của các phòng ban được chọn thành ID phòng ban hiện tại
+            for (Long childId : request.getChildrenIds()) {
+                Department child = deptMap.get(childId);
+                if (child != null) {
+                    child.setParentId(id);
+                    child.setUpdatedAt(LocalDateTime.now());
+                    departmentRepository.save(child);
+                }
+            }
+
+            // Gỡ parentId (set null) của các phòng ban con cũ không được chọn lần này
+            for (Department d : allDepartments) {
+                if (id.equals(d.getParentId()) && !request.getChildrenIds().contains(d.getId())) {
+                    d.setParentId(null);
+                    d.setUpdatedAt(LocalDateTime.now());
+                    departmentRepository.save(d);
+                }
+            }
+        }
 
         Department updated = departmentRepository.save(department);
         log.info("Đã cập nhật phòng ban: {} - {}", updated.getCode(), updated.getName());

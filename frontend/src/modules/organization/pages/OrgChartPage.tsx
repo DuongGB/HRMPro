@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { organizationApi, type DepartmentResponse } from "../api/organizationApi";
-import { toast } from "sonner";
+import { toastUtil } from "@/utils/toast";
 import { usePermission } from "../../../hooks/usePermission";
+import { employeeApi, type EmployeeResponse } from "@/modules/employee/api/employeeApi";
 import { 
   Building2, 
   User, 
@@ -32,6 +33,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Component Đệ quy hiển thị Node Phòng Ban
 interface OrgNodeProps {
@@ -107,7 +109,7 @@ const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, c
               </span>
               {hasChildren && (
                 <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 font-normal">
-                  {node.children.length} nhánh con
+                  {node.children?.length} nhánh con
                 </Badge>
               )}
             </div>
@@ -205,6 +207,54 @@ const OrgChartPage: React.FC = () => {
   const [zoom, setZoom] = useState<number>(0.8);
   const [search, setSearch] = useState("");
 
+  // State & Refs quản lý kéo thả sơ đồ cây (Drag-to-Pan)
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const startPanOffsetRef = useRef({ x: 0, y: 0 });
+  const isDraggingRef = useRef(false);
+
+  // Xử lý kéo thả (drag-to-pan)
+  const handleStart = (clientX: number, clientY: number, target: HTMLElement) => {
+    // Chặn kéo thả khi nhấn vào các phần tử tương tác (button, input, link...)
+    if (
+      target.closest("button") || 
+      target.closest("input") || 
+      target.closest("a") || 
+      target.closest("select") || 
+      target.closest("textarea") ||
+      target.closest(".no-drag")
+    ) {
+      return;
+    }
+    isDraggingRef.current = true;
+    setIsDragging(true);
+    dragStartRef.current = { x: clientX, y: clientY };
+    startPanOffsetRef.current = { ...panOffset };
+  };
+
+  const handleMove = (clientX: number, clientY: number) => {
+    if (!isDraggingRef.current) return;
+    const dx = clientX - dragStartRef.current.x;
+    const dy = clientY - dragStartRef.current.y;
+    
+    // Chia cho zoom để tốc độ kéo 1:1 với con trỏ chuột trên màn hình
+    setPanOffset({
+      x: startPanOffsetRef.current.x + dx / zoom,
+      y: startPanOffsetRef.current.y + dy / zoom,
+    });
+  };
+
+  const handleEnd = () => {
+    isDraggingRef.current = false;
+    setIsDragging(false);
+  };
+
+  const handleResetView = () => {
+    setZoom(0.8);
+    setPanOffset({ x: 0, y: 0 });
+  };
+
   // State Dialog
   const [isOpen, setIsOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -217,10 +267,27 @@ const OrgChartPage: React.FC = () => {
   const [managerId, setManagerId] = useState<number | null>(null);
   const [description, setDescription] = useState("");
 
+  // States chọn quản lý từ Dialog nhân viên
+  const [isEmployeeDialogOpen, setIsEmployeeDialogOpen] = useState(false);
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [employeePage, setEmployeePage] = useState(0);
+  const [selectedManagerName, setSelectedManagerName] = useState("");
+
+  // States quản lý phòng ban con trực thuộc (Multi-select)
+  const [selectedChildrenIds, setSelectedChildrenIds] = useState<number[]>([]);
+  const [isChildrenDialogOpen, setIsChildrenDialogOpen] = useState(false);
+
   // Query: Lấy cây phòng ban
-  const { data: tree = [], isLoading, refetch } = useQuery({
+  const { data: tree = [], isLoading } = useQuery({
     queryKey: ["department-tree"],
     queryFn: organizationApi.getDepartmentTree,
+  });
+
+  // Query: Lấy danh sách nhân viên phục vụ việc chọn quản lý
+  const { data: employeeData, isLoading: isLoadingEmployees } = useQuery({
+    queryKey: ["employees-select-list", employeeSearch, employeePage],
+    queryFn: () => employeeApi.getEmployees(employeeSearch, null, "ACTIVE", employeePage, 6),
+    enabled: isEmployeeDialogOpen,
   });
 
   // Mutation: Tạo mới phòng ban
@@ -228,12 +295,12 @@ const OrgChartPage: React.FC = () => {
     mutationFn: organizationApi.createDepartment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["department-tree"] });
-      toast.success("Tạo phòng ban mới thành công!");
+      toastUtil.success("Tạo phòng ban mới thành công!");
       setIsOpen(false);
       resetForm();
     },
     onError: (error: any) => {
-      toast.error(error.message || "Tạo phòng ban thất bại!");
+      toastUtil.error(error.message || "Tạo phòng ban thất bại!");
     }
   });
 
@@ -243,12 +310,12 @@ const OrgChartPage: React.FC = () => {
       organizationApi.updateDepartment(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["department-tree"] });
-      toast.success("Cập nhật thông tin thành công!");
+      toastUtil.success("Cập nhật thông tin thành công!");
       setIsOpen(false);
       resetForm();
     },
     onError: (error: any) => {
-      toast.error(error.message || "Cập nhật thất bại!");
+      toastUtil.error(error.message || "Cập nhật thất bại!");
     }
   });
 
@@ -257,10 +324,10 @@ const OrgChartPage: React.FC = () => {
     mutationFn: organizationApi.deleteDepartment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["department-tree"] });
-      toast.success("Đã ngừng hoạt động phòng ban!");
+      toastUtil.success("Đã ngừng hoạt động phòng ban!");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Không thể ngừng hoạt động phòng ban này!");
+      toastUtil.error(error.message || "Không thể ngừng hoạt động phòng ban này!");
     }
   });
 
@@ -269,6 +336,8 @@ const OrgChartPage: React.FC = () => {
     setName("");
     setParentId(null);
     setManagerId(null);
+    setSelectedManagerName("");
+    setSelectedChildrenIds([]);
     setDescription("");
     setSelectedDept(null);
   };
@@ -293,20 +362,39 @@ const OrgChartPage: React.FC = () => {
     setName(dept.name);
     setParentId(dept.parentId);
     setManagerId(dept.managerId);
+    setSelectedManagerName(dept.managerName || "");
+    setSelectedChildrenIds(dept.children ? dept.children.map(c => c.id) : []);
     setDescription(dept.description || "");
     setIsOpen(true);
   };
 
   const handleDelete = (id: number) => {
-    if (window.confirm("Bạn có chắc chắn muốn ngừng hoạt động phòng ban này không? Các phòng ban con và nhân sự trực thuộc sẽ bị ảnh hưởng.")) {
-      deleteMutation.mutate(id);
-    }
+    toastUtil.confirm(
+      "Xác nhận ngừng hoạt động phòng ban?",
+      () => deleteMutation.mutate(id),
+      {
+        description: "Các phòng ban con và nhân sự trực thuộc sẽ bị ảnh hưởng. Hành động này không thể hoàn tác.",
+        confirmLabel: "Ngừng hoạt động",
+        cancelLabel: "Hủy"
+      }
+    );
+  };
+
+  const handleSelectEmployee = (emp: EmployeeResponse) => {
+    setManagerId(emp.id);
+    setSelectedManagerName(emp.fullName);
+    setIsEmployeeDialogOpen(false);
+  };
+
+  const handleClearManager = () => {
+    setManagerId(null);
+    setSelectedManagerName("");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!code || !name) {
-      toast.error("Vui lòng điền mã và tên phòng ban");
+      toastUtil.error("Vui lòng điền mã và tên phòng ban");
       return;
     }
 
@@ -316,6 +404,7 @@ const OrgChartPage: React.FC = () => {
       parentId,
       managerId,
       description,
+      childrenIds: selectedChildrenIds,
     };
 
     if (isEditMode && selectedDept) {
@@ -352,7 +441,7 @@ const OrgChartPage: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Sơ đồ tổ chức</h2>
           <p className="text-muted-foreground">
-            Xem và cấu hình phân cấp các phòng ban trong toàn bộ doanh nghiệp.
+            Xem và cấu hình phân cấp các phòng ban trong toàn bộ doanh nghiệp (sơ đồ cây hiển thị các cấp quản lý và lãnh đạo).
           </p>
         </div>
         
@@ -407,8 +496,9 @@ const OrgChartPage: React.FC = () => {
               {Math.round(zoom * 100)}%
             </span>
             <button 
-              onClick={() => setZoom(0.8)}
+              onClick={handleResetView}
               className="text-[10px] font-semibold text-primary hover:underline ml-1"
+              title="Đặt lại mức thu phóng và vị trí sơ đồ"
             >
               Đặt lại
             </button>
@@ -440,7 +530,29 @@ const OrgChartPage: React.FC = () => {
 
       {/* Main Canvas Area */}
       {viewMode === "tree" ? (
-        <div className="border rounded-xl bg-background shadow-sm p-10 min-h-[550px] overflow-auto flex justify-center relative bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] dark:bg-[radial-gradient(#334155_1px,transparent_1px)]">
+        <div 
+          className={`border rounded-xl bg-background shadow-sm p-10 min-h-[550px] overflow-hidden flex justify-center relative bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] dark:bg-[radial-gradient(#334155_1px,transparent_1px)] select-none ${
+            isDragging ? "cursor-grabbing" : "cursor-grab"
+          }`}
+          onMouseDown={(e) => {
+            if (e.button !== 0) return; // Chỉ cho phép kéo bằng chuột trái
+            handleStart(e.clientX, e.clientY, e.target as HTMLElement);
+          }}
+          onMouseMove={(e) => handleMove(e.clientX, e.clientY)}
+          onMouseUp={handleEnd}
+          onMouseLeave={handleEnd}
+          onTouchStart={(e) => {
+            if (e.touches.length === 1) {
+              handleStart(e.touches[0].clientX, e.touches[0].clientY, e.target as HTMLElement);
+            }
+          }}
+          onTouchMove={(e) => {
+            if (e.touches.length === 1) {
+              handleMove(e.touches[0].clientX, e.touches[0].clientY);
+            }
+          }}
+          onTouchEnd={handleEnd}
+        >
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <Loader2 size={36} className="animate-spin text-primary" />
@@ -452,8 +564,11 @@ const OrgChartPage: React.FC = () => {
             </div>
           ) : (
             <div 
-              className="transition-transform duration-200 ease-out flex gap-12 pt-6 items-start origin-top"
-              style={{ transform: `scale(${zoom})`, minWidth: "max-content" }}
+              className="transition-transform duration-75 ease-out flex gap-12 pt-6 items-start origin-top select-none"
+              style={{ 
+                transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`, 
+                minWidth: "max-content" 
+              }}
             >
               {tree.map(rootNode => (
                 <OrgNode 
@@ -607,25 +722,87 @@ const OrgChartPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="space-y-1">
-              <Label>Mã phòng ban cha</Label>
-              <Input 
-                value={parentId ? `Phòng ban ID: ${parentId}` : "Phòng ban gốc"} 
-                disabled 
-                className="bg-muted text-muted-foreground"
-              />
+            <div className="space-y-1.5">
+              <Label>Quản lý phòng ban (Trưởng phòng)</Label>
+              <div className="flex items-center gap-2">
+                <div className="grow border rounded-md px-3 py-2 bg-muted/30 text-sm flex items-center justify-between min-h-[40px]">
+                  {selectedManagerName ? (
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-foreground text-xs">{selectedManagerName}</span>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground italic text-xs">Chưa chọn quản lý</span>
+                  )}
+                  {managerId && (
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={handleClearManager}
+                      className="h-6 px-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      Xóa chọn
+                    </Button>
+                  )}
+                </div>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setEmployeeSearch("");
+                    setEmployeePage(0);
+                    setIsEmployeeDialogOpen(true);
+                  }}
+                  className="shrink-0 flex items-center gap-1.5 text-xs h-10"
+                >
+                  <User size={14} />
+                  Chọn nhân viên
+                </Button>
+              </div>
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="dept-manager">ID quản lý phòng ban (Manager Employee ID)</Label>
-              <Input 
-                id="dept-manager" 
-                type="number"
-                placeholder="ID nhân viên..." 
-                value={managerId || ""}
-                onChange={(e) => setManagerId(e.target.value ? Number(e.target.value) : null)}
-              />
-            </div>
+            {isEditMode && (
+              <div className="space-y-1.5">
+                <Label>Các phòng ban con trực thuộc (Quản lý nhiều)</Label>
+                <div className="border rounded-md p-3 bg-muted/10 space-y-2.5">
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedChildrenIds.length > 0 ? (
+                      selectedChildrenIds.map(childId => {
+                        const childDept = allDepts.find(d => d.id === childId);
+                        return (
+                          <Badge 
+                            key={childId} 
+                            variant="secondary" 
+                            className="text-[10px] px-2 py-0.5 flex items-center gap-1 bg-primary/10 text-primary border border-primary/20"
+                          >
+                            {childDept ? childDept.name : `ID: ${childId}`}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedChildrenIds(ids => ids.filter(id => id !== childId))}
+                              className="text-primary hover:text-destructive transition-colors shrink-0 ml-0.5 font-bold"
+                            >
+                              ✕
+                            </button>
+                          </Badge>
+                        );
+                      })
+                    ) : (
+                      <span className="text-muted-foreground italic text-[11px]">Chưa có phòng ban con trực thuộc</span>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsChildrenDialogOpen(true)}
+                    className="w-full text-[11px] flex items-center gap-1 h-8"
+                  >
+                    <Plus size={12} />
+                    Quản lý danh sách con
+                  </Button>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1">
               <Label htmlFor="dept-desc">Mô tả phòng ban</Label>
@@ -645,6 +822,169 @@ const OrgChartPage: React.FC = () => {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog chọn nhân viên làm quản lý */}
+      <Dialog open={isEmployeeDialogOpen} onOpenChange={setIsEmployeeDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Chọn quản lý phòng ban</DialogTitle>
+            <DialogDescription>
+              Tìm kiếm và chọn một nhân viên đang hoạt động làm quản lý cho phòng ban này.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Tìm kiếm */}
+          <div className="relative my-2 shrink-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Tìm kiếm theo tên hoặc mã nhân viên..."
+              value={employeeSearch}
+              onChange={(e) => {
+                setEmployeeSearch(e.target.value);
+                setEmployeePage(0); // Reset về trang đầu khi search
+              }}
+              className="pl-9 bg-background"
+            />
+          </div>
+
+          {/* Danh sách nhân viên */}
+          <div className="flex-1 overflow-y-auto min-h-[300px] border rounded-lg">
+            {isLoadingEmployees ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-3">
+                <Loader2 size={28} className="animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Đang tải danh sách nhân viên...</p>
+              </div>
+            ) : !employeeData || employeeData.content.length === 0 ? (
+              <div className="text-center py-20 text-muted-foreground text-sm">
+                Không tìm thấy nhân viên nào hoạt động.
+              </div>
+            ) : (
+              <div className="divide-y">
+                {employeeData.content.map((emp) => (
+                  <div key={emp.id} className="flex items-center justify-between p-3 hover:bg-muted/40 transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 font-bold text-xs">
+                        {emp.firstName.charAt(0)}
+                      </div>
+                      <div className="min-w-0 text-left">
+                        <p className="font-semibold text-xs text-foreground truncate">{emp.fullName}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{emp.email}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[9px] bg-muted border rounded px-1 py-0.2 font-mono font-medium">
+                            {emp.employeeCode}
+                          </span>
+                          {emp.positionName && (
+                            <span className="text-[9px] text-primary bg-primary/5 px-1 py-0.2 rounded border border-primary/10">
+                              {emp.positionName}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleSelectEmployee(emp)}
+                      className="h-7 px-2.5 text-[11px]"
+                    >
+                      Chọn
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Phân trang */}
+          {employeeData && employeeData.totalPages > 1 && (
+            <div className="flex items-center justify-between pt-3 border-t mt-2 shrink-0">
+              <span className="text-[11px] text-muted-foreground">
+                Trang {employeePage + 1} / {employeeData.totalPages} ({employeeData.totalElements} nhân viên)
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={employeePage === 0}
+                  onClick={() => setEmployeePage((p) => Math.max(0, p - 1))}
+                  className="h-7 text-[11px]"
+                >
+                  Trước
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={employeePage >= employeeData.totalPages - 1}
+                  onClick={() => setEmployeePage((p) => p + 1)}
+                  className="h-7 text-[11px]"
+                >
+                  Sau
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="pt-3 border-t mt-3 shrink-0">
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsEmployeeDialogOpen(false)}>
+              Đóng
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog quản lý danh sách phòng ban con */}
+      <Dialog open={isChildrenDialogOpen} onOpenChange={setIsChildrenDialogOpen}>
+        <DialogContent className="sm:max-w-[450px] max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Quản lý phòng ban con trực thuộc</DialogTitle>
+            <DialogDescription>
+              Chọn các phòng ban làm con trực thuộc phòng ban "{name}".
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto border rounded-lg p-2 min-h-[250px] divide-y">
+            {allDepts
+              .filter(d => d.id !== selectedDept?.id) // Loại trừ chính nó
+              .map(dept => {
+                const isSelected = selectedChildrenIds.includes(dept.id);
+                return (
+                  <div 
+                    key={dept.id} 
+                    className="flex items-center space-x-3 py-2 px-2 hover:bg-muted/30 transition-colors"
+                  >
+                    <Checkbox
+                      id={`child-dept-${dept.id}`}
+                      checked={isSelected}
+                      onCheckedChange={(checked: boolean | "indeterminate") => {
+                        if (checked) {
+                          setSelectedChildrenIds(ids => [...ids, dept.id]);
+                        } else {
+                          setSelectedChildrenIds(ids => ids.filter(id => id !== dept.id));
+                        }
+                      }}
+                    />
+                    <Label
+                      htmlFor={`child-dept-${dept.id}`}
+                      className="text-xs font-normal cursor-pointer text-left grow leading-snug"
+                    >
+                      <span className="font-semibold text-foreground block text-xs">{dept.name}</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">{dept.code}</span>
+                    </Label>
+                  </div>
+                );
+              })}
+          </div>
+
+          <DialogFooter className="pt-2 shrink-0">
+            <Button type="button" size="sm" onClick={() => setIsChildrenDialogOpen(false)}>
+              Hoàn tất
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
