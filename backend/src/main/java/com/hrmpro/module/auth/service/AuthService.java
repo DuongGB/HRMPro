@@ -75,7 +75,14 @@ public class AuthService {
                 .collect(Collectors.toList());
 
         Long employeeId = user.getEmployee() != null ? user.getEmployee().getId() : null;
-        UserResponse userResponse = new UserResponse(user.getId(), user.getUsername(), roles, employeeId);
+        UserResponse userResponse = UserResponse.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .roles(roles.stream().collect(Collectors.toSet()))
+                .employeeId(employeeId)
+                .isActive(user.getIsActive())
+                .createdAt(user.getCreatedAt())
+                .build();
 
         return new LoginResponse(
                 accessToken,

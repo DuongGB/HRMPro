@@ -1,10 +1,22 @@
 package com.hrmpro.module.auth.dto;
 
-import java.util.List;
+import lombok.*;
 
-public record UserResponse(
-    Long id,
-    String username,
-    List<String> roles,
-    Long employeeId
-) {}
+import java.time.LocalDateTime;
+import java.util.Set;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class UserResponse {
+    private Long id;
+    private String username;
+    private Long employeeId;
+    private String employeeCode;
+    private String employeeName;
+    private Boolean isActive;
+    private Set<String> roles;
+    private LocalDateTime createdAt;
+}

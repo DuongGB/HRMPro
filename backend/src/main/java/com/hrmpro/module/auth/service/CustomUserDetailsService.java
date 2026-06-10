@@ -1,6 +1,7 @@
 package com.hrmpro.module.auth.service;
 
 import com.hrmpro.module.auth.entity.User;
+import com.hrmpro.module.auth.entity.UserPrincipal;
 import com.hrmpro.module.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -26,9 +27,12 @@ public class CustomUserDetailsService implements UserDetailsService {
             throw new UsernameNotFoundException("Tài khoản người dùng đã bị khóa");
         }
 
-        return org.springframework.security.core.userdetails.User.builder()
+        return UserPrincipal.builder()
+                .id(user.getId())
                 .username(user.getUsername())
                 .password(user.getPassword())
+                .employeeId(user.getEmployee() != null ? user.getEmployee().getId() : null)
+                .isActive(user.getIsActive())
                 .authorities(user.getRoles().stream()
                         .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getName().name()))
                         .collect(Collectors.toList()))
