@@ -50,7 +50,7 @@ app:
   payroll:
     cron: ${APP_PAYROLL_CRON}
   audit-log:
-    retention-days: ${APP_AUDIT_LOG_RETENTION_DAYS:90}
+    retention-days: ${APP_AUDIT_LOG_RETENTION_DAYS}
 
 logging:
   level:
