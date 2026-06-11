@@ -1,22 +1,32 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { employeeApi } from "../api/employeeApi";
+import { employeeApi, type SelfUpdateRequest } from "../api/employeeApi";
 import { toastUtil } from "@/utils/toast";
 import { usePermission } from "../../../hooks/usePermission";
 import { useAppSelector } from "../../../store";
-import { 
-  ArrowLeft, 
-  Building, 
-  Briefcase, 
-  Calendar, 
-  Camera, 
-  ShieldAlert, 
-  Plus, 
-  Loader2, 
-  Download, 
+import {
+  ArrowLeft,
+  Building,
+  Briefcase,
+  Calendar,
+  Camera,
+  ShieldAlert,
+  Plus,
+  Loader2,
+  Download,
   CheckCircle2,
-  Clock
+  Clock,
+  Pencil,
+  X,
+  Mail,
+  Phone,
+  User,
+  CreditCard,
+  MapPin,
+  Landmark,
+  Users,
+  Hash
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -28,7 +38,53 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
+// ─── Helper: Format date ────────────────────────────────────────────────────────
+const fmtDate = (val: string | null | undefined) =>
+  val ? new Date(val).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
+
+const fmtGender = (val: string | null | undefined) => {
+  if (val === "MALE") return "Nam";
+  if (val === "FEMALE") return "Nữ";
+  if (val === "OTHER") return "Khác";
+  return "—";
+};
+
+// ─── InfoRow: row hiển thị nhãn + giá trị ──────────────────────────────────────
+interface InfoRowProps {
+  icon?: React.ReactNode;
+  label: string;
+  value?: string | null;
+  full?: boolean;
+}
+const InfoRow: React.FC<InfoRowProps> = ({ icon, label, value, full }) => (
+  <div className={`flex flex-col gap-0.5 ${full ? "col-span-2" : ""}`}>
+    <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+      {icon && <span className="opacity-60">{icon}</span>}
+      {label}
+    </span>
+    <span className="text-sm font-medium text-foreground leading-snug">
+      {value || <span className="text-muted-foreground/50 italic text-xs">Chưa cập nhật</span>}
+    </span>
+  </div>
+);
+
+// ─── SectionCard ────────────────────────────────────────────────────────────────
+interface SectionCardProps {
+  title: string;
+  children: React.ReactNode;
+}
+const SectionCard: React.FC<SectionCardProps> = ({ title, children }) => (
+  <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+    <div className="px-5 py-3 border-b bg-muted/30">
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+    </div>
+    <div className="p-5 grid grid-cols-2 gap-x-8 gap-y-5">{children}</div>
+  </div>
+);
+
+// ══════════════════════════════════════════════════════════════════════════════
 const EmployeeDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const empId = Number(id);
@@ -36,31 +92,22 @@ const EmployeeDetailPage: React.FC = () => {
   const queryClient = useQueryClient();
   const { hasAnyRole } = usePermission();
   const user = useAppSelector((state) => state.auth.user);
-  
-  // Kiểm tra quyền
+
   const isSelf = user?.employeeId === empId;
   const canManage = hasAnyRole(["SUPER_ADMIN", "HR_ADMIN"]);
   const canEditInfo = canManage || (hasAnyRole(["HR_STAFF"]) && !isSelf);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // State Dialogs
+  // ── UI State ─────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState("profile");
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isSelfEditMode, setIsSelfEditMode] = useState(false);
   const [isContractOpen, setIsContractOpen] = useState(false);
   const [isTerminateOpen, setIsTerminateOpen] = useState(false);
   const [terminationDate, setTerminationDate] = useState("");
 
-  // Form Hợp đồng State
-  const [contractNum, setContractNum] = useState("");
-  const [contractType, setContractType] = useState("PROBATION");
-  const [contractStart, setContractStart] = useState("");
-  const [contractEnd, setContractEnd] = useState("");
-  const [baseSalary, setBaseSalary] = useState("");
-  const [signedAt, setSignedAt] = useState("");
-  const [contractNotes, setContractNotes] = useState("");
-  const [contractFile, setContractFile] = useState<File | null>(null);
-
-  // Form Cập nhật Employee State
+  // ── Form Edit State ───────────────────────────────────────────────────────
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -82,70 +129,85 @@ const EmployeeDetailPage: React.FC = () => {
   const [bankName, setBankName] = useState("");
   const [socialId, setSocialId] = useState("");
 
-  // Query: Lấy chi tiết Employee
+  // ── Form Hợp đồng State ───────────────────────────────────────────────────
+  const [contractNum, setContractNum] = useState("");
+  const [contractType, setContractType] = useState("PROBATION");
+  const [contractStart, setContractStart] = useState("");
+  const [contractEnd, setContractEnd] = useState("");
+  const [baseSalary, setBaseSalary] = useState("");
+  const [signedAt, setSignedAt] = useState("");
+  const [contractNotes, setContractNotes] = useState("");
+  const [contractFile, setContractFile] = useState<File | null>(null);
+
+  // ── Query: Chi tiết Employee ──────────────────────────────────────────────
   const { data: employee, isLoading, error } = useQuery({
     queryKey: ["employee", empId],
     queryFn: () => employeeApi.getEmployee(empId),
-    meta: {
-      onSuccess: (data: any) => {
-        // Điền dữ liệu vào form edit
-        setFirstName(data.firstName);
-        setLastName(data.lastName);
-        setEmail(data.email);
-        setPersonalEmail(data.personalEmail || "");
-        setPhone(data.phone || "");
-        setGender(data.gender || "MALE");
-        setDob(data.dateOfBirth || "");
-        setIdCard(data.idCardNumber || "");
-        setIdCardDate(data.idCardIssuedDate || "");
-        setIdCardPlace(data.idCardIssuedPlace || "");
-        setPermanentAddress(data.permanentAddress || "");
-        setCurrentAddress(data.currentAddress || "");
-        setProbationEnd(data.probationEndDate || "");
-        setDeptId(data.departmentId ? data.departmentId.toString() : "none");
-        setPosId(data.positionId ? data.positionId.toString() : "none");
-        setMgrId(data.managerId ? data.managerId.toString() : "none");
-        setTaxCode(data.taxCode || "");
-        setBankNum(data.bankAccountNumber || "");
-        setBankName(data.bankName || "");
-        setSocialId(data.socialInsuranceId || "");
-      }
-    }
   });
 
-  // Query: Danh sách hợp đồng
+  // Sync form state mỗi khi employee data thay đổi (fix meta.onSuccess deprecated)
+  useEffect(() => {
+    if (!employee) return;
+    setFirstName(employee.firstName);
+    setLastName(employee.lastName);
+    setEmail(employee.email);
+    setPersonalEmail(employee.personalEmail || "");
+    setPhone(employee.phone || "");
+    setGender(employee.gender || "MALE");
+    setDob(employee.dateOfBirth || "");
+    setIdCard(employee.idCardNumber || "");
+    setIdCardDate(employee.idCardIssuedDate || "");
+    setIdCardPlace(employee.idCardIssuedPlace || "");
+    setPermanentAddress(employee.permanentAddress || "");
+    setCurrentAddress(employee.currentAddress || "");
+    setProbationEnd(employee.probationEndDate || "");
+    setDeptId(employee.departmentId ? employee.departmentId.toString() : "none");
+    setPosId(employee.positionId ? employee.positionId.toString() : "none");
+    setMgrId(employee.managerId ? employee.managerId.toString() : "none");
+    setTaxCode(employee.taxCode || "");
+    setBankNum(employee.bankAccountNumber || "");
+    setBankName(employee.bankName || "");
+    setSocialId(employee.socialInsuranceId || "");
+  }, [employee]);
+
+  // ── Query: Hợp đồng ──────────────────────────────────────────────────────
   const { data: contracts = [], isLoading: isContractsLoading } = useQuery({
     queryKey: ["contracts", empId],
     queryFn: () => employeeApi.getContracts(empId),
   });
 
-  // Mutation: Cập nhật nhân viên
+  // ── Mutations ─────────────────────────────────────────────────────────────
   const updateMutation = useMutation({
     mutationFn: (data: any) => employeeApi.updateEmployee(empId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee", empId] });
       toastUtil.success("Cập nhật hồ sơ thành công!");
+      setIsEditMode(false);
     },
-    onError: (error: any) => {
-      toastUtil.error(error.message || "Cập nhật hồ sơ thất bại!");
-    }
+    onError: (error: any) => toastUtil.error(error.message || "Cập nhật hồ sơ thất bại!"),
   });
 
-  // Mutation: Thay đổi avatar
+  const selfUpdateMutation = useMutation({
+    mutationFn: (data: SelfUpdateRequest) => employeeApi.selfUpdate(empId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee", empId] });
+      toastUtil.success("Đã cập nhật thông tin cá nhân!");
+      setIsSelfEditMode(false);
+    },
+    onError: (error: any) => toastUtil.error(error.message || "Cập nhật thất bại!"),
+  });
+
   const avatarMutation = useMutation({
     mutationFn: (file: File) => employeeApi.updateAvatar(empId, file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee", empId] });
       toastUtil.success("Cập nhật ảnh đại diện thành công!");
     },
-    onError: (error: any) => {
-      toastUtil.error(error.message || "Tải ảnh đại diện thất bại!");
-    }
+    onError: (error: any) => toastUtil.error(error.message || "Tải ảnh đại diện thất bại!"),
   });
 
-  // Mutation: Tạo hợp đồng
   const createContractMutation = useMutation({
-    mutationFn: ({ req, file }: { req: any; file?: File }) => 
+    mutationFn: ({ req, file }: { req: any; file?: File }) =>
       employeeApi.createContract(empId, req, file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contracts", empId] });
@@ -153,12 +215,9 @@ const EmployeeDetailPage: React.FC = () => {
       setIsContractOpen(false);
       resetContractForm();
     },
-    onError: (error: any) => {
-      toastUtil.error(error.message || "Tạo hợp đồng thất bại!");
-    }
+    onError: (error: any) => toastUtil.error(error.message || "Tạo hợp đồng thất bại!"),
   });
 
-  // Mutation: Cho thôi việc
   const terminateMutation = useMutation({
     mutationFn: (termDate: string) => employeeApi.terminateEmployee(empId, termDate),
     onSuccess: () => {
@@ -166,39 +225,54 @@ const EmployeeDetailPage: React.FC = () => {
       toastUtil.success("Đã ghi nhận thôi việc nhân sự!");
       setIsTerminateOpen(false);
     },
-    onError: (error: any) => {
-      toastUtil.error(error.message || "Thao tác thất bại!");
-    }
+    onError: (error: any) => toastUtil.error(error.message || "Thao tác thất bại!"),
   });
 
+  // ── Handlers ──────────────────────────────────────────────────────────────
   const resetContractForm = () => {
-    setContractNum("");
-    setContractType("PROBATION");
-    setContractStart("");
-    setContractEnd("");
-    setBaseSalary("");
-    setSignedAt("");
-    setContractNotes("");
-    setContractFile(null);
+    setContractNum(""); setContractType("PROBATION"); setContractStart("");
+    setContractEnd(""); setBaseSalary(""); setSignedAt("");
+    setContractNotes(""); setContractFile(null);
+  };
+
+  const handleCancelEdit = () => {
+    if (employee) {
+      setFirstName(employee.firstName); setLastName(employee.lastName);
+      setEmail(employee.email); setPersonalEmail(employee.personalEmail || "");
+      setPhone(employee.phone || ""); setGender(employee.gender || "MALE");
+      setDob(employee.dateOfBirth || ""); setIdCard(employee.idCardNumber || "");
+      setIdCardDate(employee.idCardIssuedDate || ""); setIdCardPlace(employee.idCardIssuedPlace || "");
+      setPermanentAddress(employee.permanentAddress || ""); setCurrentAddress(employee.currentAddress || "");
+      setProbationEnd(employee.probationEndDate || "");
+      setDeptId(employee.departmentId ? employee.departmentId.toString() : "none");
+      setPosId(employee.positionId ? employee.positionId.toString() : "none");
+      setMgrId(employee.managerId ? employee.managerId.toString() : "none");
+      setTaxCode(employee.taxCode || ""); setBankNum(employee.bankAccountNumber || "");
+      setBankName(employee.bankName || ""); setSocialId(employee.socialInsuranceId || "");
+    }
+    setIsEditMode(false);
+  };
+
+  const handleSelfUpdate = (e: React.FormEvent) => {
+    e.preventDefault();
+    selfUpdateMutation.mutate({
+      phone: phone || undefined,
+      personalEmail: personalEmail || undefined,
+      currentAddress: currentAddress || undefined,
+    });
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      avatarMutation.mutate(e.target.files[0]);
-    }
+    if (e.target.files?.[0]) avatarMutation.mutate(e.target.files[0]);
   };
 
   const handleUpdateProfile = (e: React.FormEvent) => {
     e.preventDefault();
     if (!firstName || !lastName || !email) return;
-
     updateMutation.mutate({
-      firstName,
-      lastName,
-      email,
+      firstName, lastName, email,
       personalEmail: personalEmail || undefined,
-      phone: phone || undefined,
-      gender,
+      phone: phone || undefined, gender,
       dateOfBirth: dob || undefined,
       idCardNumber: idCard || undefined,
       idCardIssuedDate: idCardDate || undefined,
@@ -222,16 +296,12 @@ const EmployeeDetailPage: React.FC = () => {
       toastUtil.error("Vui lòng điền đủ thông tin hợp đồng bắt buộc");
       return;
     }
-
     createContractMutation.mutate({
       req: {
-        contractNumber: contractNum,
-        contractType,
-        startDate: contractStart,
-        endDate: contractEnd || null,
+        contractNumber: contractNum, contractType,
+        startDate: contractStart, endDate: contractEnd || null,
         baseSalary: Number(baseSalary),
-        signedAt: signedAt || null,
-        notes: contractNotes,
+        signedAt: signedAt || null, notes: contractNotes,
       },
       file: contractFile || undefined,
     });
@@ -243,6 +313,7 @@ const EmployeeDetailPage: React.FC = () => {
     terminateMutation.mutate(terminationDate);
   };
 
+  // ── Loading / Error states ────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-32 gap-3">
@@ -260,19 +331,17 @@ const EmployeeDetailPage: React.FC = () => {
     );
   }
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      {/* Back Button */}
-      <div>
-        <Button variant="ghost" onClick={() => navigate("/employees")} className="flex items-center gap-2 px-0 hover:bg-transparent">
-          <ArrowLeft size={16} />
-          Quay lại danh sách
-        </Button>
-      </div>
+      {/* Back */}
+      <Button variant="ghost" onClick={() => navigate("/employees")} className="flex items-center gap-2 px-0 hover:bg-transparent">
+        <ArrowLeft size={16} /> Quay lại danh sách
+      </Button>
 
-      {/* Profile Header Block */}
+      {/* Profile Header */}
       <div className="bg-background border rounded-xl p-6 shadow-sm flex flex-col md:flex-row gap-6 items-center md:items-start relative overflow-hidden">
-        {/* Avatar với Camera Icon */}
+        {/* Avatar */}
         <div className="relative group shrink-0">
           <Avatar className="h-24 w-24 border-2 border-primary/20 shadow-md">
             <AvatarImage src={employee.avatarUrl || ""} alt={employee.fullName} />
@@ -280,28 +349,21 @@ const EmployeeDetailPage: React.FC = () => {
               {employee.lastName.charAt(0)}{employee.firstName.charAt(0)}
             </AvatarFallback>
           </Avatar>
-          
           {(isSelf || canManage) && (
             <>
-              <button 
+              <button
                 onClick={() => fileInputRef.current?.click()}
                 className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer"
                 title="Thay ảnh đại diện"
               >
                 <Camera size={20} />
               </button>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleAvatarChange} 
-                className="hidden" 
-                accept="image/*" 
-              />
+              <input type="file" ref={fileInputRef} onChange={handleAvatarChange} className="hidden" accept="image/*" />
             </>
           )}
         </div>
 
-        {/* Basic Details */}
+        {/* Basic Info */}
         <div className="flex-1 text-center md:text-left space-y-2">
           <div className="flex flex-col md:flex-row md:items-center gap-2 justify-center md:justify-start">
             <h2 className="text-2xl font-bold text-foreground">{employee.fullName}</h2>
@@ -310,13 +372,12 @@ const EmployeeDetailPage: React.FC = () => {
             </Badge>
             {employee.status === "TERMINATED" ? (
               <Badge variant="destructive" className="w-fit self-center">Đã thôi việc</Badge>
+            ) : employee.status === "PROBATION" ? (
+              <Badge className="w-fit self-center bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/10">Thử việc</Badge>
             ) : (
-              <Badge className="w-fit self-center bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/10">
-                {employee.status === "ACTIVE" ? "Đang làm việc" : "Thử việc"}
-              </Badge>
+              <Badge className="w-fit self-center bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/10">Đang làm việc</Badge>
             )}
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 text-sm text-muted-foreground">
             <div className="flex items-center justify-center md:justify-start gap-2">
               <Building size={16} />
@@ -328,23 +389,22 @@ const EmployeeDetailPage: React.FC = () => {
             </div>
             <div className="flex items-center justify-center md:justify-start gap-2">
               <Calendar size={16} />
-              <span>Ngày vào: {new Date(employee.hireDate).toLocaleDateString("vi-VN")}</span>
+              <span>Ngày vào: {fmtDate(employee.hireDate)}</span>
             </div>
           </div>
         </div>
 
-        {/* Hành động thôi việc */}
+        {/* Thôi việc action */}
         {canManage && employee.status !== "TERMINATED" && (
           <div className="md:absolute md:top-6 md:right-6 mt-4 md:mt-0">
             <Button variant="destructive" onClick={() => setIsTerminateOpen(true)} className="flex items-center gap-2">
-              <ShieldAlert size={16} />
-              Thôi việc nhân viên
+              <ShieldAlert size={16} /> Thôi việc nhân viên
             </Button>
           </div>
         )}
       </div>
 
-      {/* Tabs Layout */}
+      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3 md:w-[400px] mb-4 bg-muted/60">
           <TabsTrigger value="profile">Hồ sơ</TabsTrigger>
@@ -352,127 +412,313 @@ const EmployeeDetailPage: React.FC = () => {
           <TabsTrigger value="onboarding">Checklist</TabsTrigger>
         </TabsList>
 
-        {/* Tab 1: Profile Form */}
+        {/* ─── Tab 1: Hồ sơ ────────────────────────────────────────────────── */}
         <TabsContent value="profile">
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle>Thông tin chi tiết hồ sơ</CardTitle>
-              <CardDescription>
-                {canEditInfo ? "Cập nhật thông tin chi tiết nhân sự." : "Chi tiết hồ sơ cá nhân của nhân sự."}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleUpdateProfile} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="edit-lastname">Họ và đệm *</Label>
-                    <Input id="edit-lastname" value={lastName} onChange={e => setLastName(e.target.value)} disabled={!canEditInfo} required />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="edit-firstname">Tên *</Label>
-                    <Input id="edit-firstname" value={firstName} onChange={e => setFirstName(e.target.value)} disabled={!canEditInfo} required />
-                  </div>
+          {isEditMode ? (
+            /* ── EDIT MODE ── */
+            <Card className="shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <div>
+                  <CardTitle>Chỉnh sửa hồ sơ</CardTitle>
+                  <CardDescription>Cập nhật thông tin chi tiết nhân sự.</CardDescription>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="edit-email">Email công ty *</Label>
-                    <Input id="edit-email" type="email" value={email} onChange={e => setEmail(e.target.value)} disabled={!canEditInfo} required />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="edit-personal-email">Email cá nhân</Label>
-                    <Input id="edit-personal-email" type="email" value={personalEmail} onChange={e => setPersonalEmail(e.target.value)} disabled={!canEditInfo} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="edit-phone">Số điện thoại</Label>
-                    <Input id="edit-phone" value={phone} onChange={e => setPhone(e.target.value)} disabled={!canEditInfo} />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="edit-gender">Giới tính</Label>
-                    <Select value={gender} onValueChange={setGender} disabled={!canEditInfo}>
-                      <SelectTrigger id="edit-gender">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="MALE">Nam</SelectItem>
-                        <SelectItem value="FEMALE">Nữ</SelectItem>
-                        <SelectItem value="OTHER">Khác</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="edit-dob">Ngày sinh</Label>
-                    <Input id="edit-dob" type="date" value={dob} onChange={e => setDob(e.target.value)} disabled={!canEditInfo} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="edit-probation">Ngày hết hạn thử việc</Label>
-                    <Input id="edit-probation" type="date" value={probationEnd} onChange={e => setProbationEnd(e.target.value)} disabled={!canEditInfo} />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="edit-idcard">Số CCCD</Label>
-                    <Input id="edit-idcard" value={idCard} onChange={e => setIdCard(e.target.value)} disabled={!canEditInfo} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="edit-idcard-date">Ngày cấp</Label>
-                    <Input id="edit-idcard-date" type="date" value={idCardDate} onChange={e => setIdCardDate(e.target.value)} disabled={!canEditInfo} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="edit-idcard-place">Nơi cấp</Label>
-                    <Input id="edit-idcard-place" value={idCardPlace} onChange={e => setIdCardPlace(e.target.value)} disabled={!canEditInfo} />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="edit-permanent">Địa chỉ thường trú (trên sổ hộ khẩu/CCCD)</Label>
-                  <Input id="edit-permanent" value={permanentAddress} onChange={e => setPermanentAddress(e.target.value)} disabled={!canEditInfo} />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="edit-current">Địa chỉ tạm trú hiện tại</Label>
-                  <Input id="edit-current" value={currentAddress} onChange={e => setCurrentAddress(e.target.value)} disabled={!canEditInfo} />
-                </div>
-
-                <div className="border-t pt-4">
-                  <h3 className="text-md font-bold mb-4">Thông tin Thuế & Tài khoản chuyển lương</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="space-y-1">
-                      <Label htmlFor="edit-tax">Mã số thuế cá nhân</Label>
-                      <Input id="edit-tax" value={taxCode} onChange={e => setTaxCode(e.target.value)} disabled={!canEditInfo} />
+                <Button variant="ghost" size="icon" onClick={handleCancelEdit} title="Hủy chỉnh sửa">
+                  <X size={18} />
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleUpdateProfile} className="space-y-6">
+                  {/* Thông tin cơ bản */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Thông tin cơ bản</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-lastname">Họ và đệm *</Label>
+                        <Input id="edit-lastname" value={lastName} onChange={e => setLastName(e.target.value)} required />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-firstname">Tên *</Label>
+                        <Input id="edit-firstname" value={firstName} onChange={e => setFirstName(e.target.value)} required />
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="edit-bank">Số tài khoản ngân hàng</Label>
-                      <Input id="edit-bank" value={bankNum} onChange={e => setBankNum(e.target.value)} disabled={!canEditInfo} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="edit-bankname">Tên ngân hàng</Label>
-                      <Input id="edit-bankname" value={bankName} onChange={e => setBankName(e.target.value)} disabled={!canEditInfo} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="edit-social">Mã số BHXH</Label>
-                      <Input id="edit-social" value={socialId} onChange={e => setSocialId(e.target.value)} disabled={!canEditInfo} />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-gender">Giới tính</Label>
+                        <Select value={gender} onValueChange={setGender}>
+                          <SelectTrigger id="edit-gender"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="MALE">Nam</SelectItem>
+                            <SelectItem value="FEMALE">Nữ</SelectItem>
+                            <SelectItem value="OTHER">Khác</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-dob">Ngày sinh</Label>
+                        <Input id="edit-dob" type="date" value={dob} onChange={e => setDob(e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-phone">Số điện thoại</Label>
+                        <Input id="edit-phone" value={phone} onChange={e => setPhone(e.target.value)} />
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {canEditInfo && (
-                  <div className="flex justify-end pt-4">
+                  <Separator />
+
+                  {/* Liên hệ */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Email & Liên hệ</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-email">Email công ty *</Label>
+                        <Input id="edit-email" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-personal-email">Email cá nhân</Label>
+                        <Input id="edit-personal-email" type="email" value={personalEmail} onChange={e => setPersonalEmail(e.target.value)} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* CCCD */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Giấy tờ tùy thân</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-idcard">Số CCCD/CMND</Label>
+                        <Input id="edit-idcard" value={idCard} onChange={e => setIdCard(e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-idcard-date">Ngày cấp</Label>
+                        <Input id="edit-idcard-date" type="date" value={idCardDate} onChange={e => setIdCardDate(e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-idcard-place">Nơi cấp</Label>
+                        <Input id="edit-idcard-place" value={idCardPlace} onChange={e => setIdCardPlace(e.target.value)} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Địa chỉ */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Địa chỉ</h3>
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-permanent">Địa chỉ thường trú (theo CCCD)</Label>
+                        <Input id="edit-permanent" value={permanentAddress} onChange={e => setPermanentAddress(e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-current">Địa chỉ tạm trú hiện tại</Label>
+                        <Input id="edit-current" value={currentAddress} onChange={e => setCurrentAddress(e.target.value)} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Tổ chức */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Phân công tổ chức</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-probation">Ngày hết thử việc</Label>
+                        <Input id="edit-probation" type="date" value={probationEnd} onChange={e => setProbationEnd(e.target.value)} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Tài chính */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Thuế & Tài khoản ngân hàng</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-tax">Mã số thuế</Label>
+                        <Input id="edit-tax" value={taxCode} onChange={e => setTaxCode(e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-bank">Số tài khoản</Label>
+                        <Input id="edit-bank" value={bankNum} onChange={e => setBankNum(e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-bankname">Ngân hàng</Label>
+                        <Input id="edit-bankname" value={bankName} onChange={e => setBankName(e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-social">Mã BHXH</Label>
+                        <Input id="edit-social" value={socialId} onChange={e => setSocialId(e.target.value)} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-2">
+                    <Button type="button" variant="outline" onClick={handleCancelEdit}>Hủy</Button>
                     <Button type="submit" disabled={updateMutation.isPending}>
                       {updateMutation.isPending && <Loader2 size={16} className="animate-spin mr-2" />}
-                      Lưu thay đổi hồ sơ
+                      Lưu thay đổi
                     </Button>
                   </div>
+                </form>
+              </CardContent>
+            </Card>
+          ) : (
+            /* ── VIEW MODE ── */
+            <div className="space-y-4">
+              {/* Nút actions */}
+              <div className="flex justify-end gap-2">
+                {isSelf && !isEditMode && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsSelfEditMode(v => !v)}
+                    className="flex items-center gap-2"
+                  >
+                    {isSelfEditMode ? <X size={14} /> : <Pencil size={14} />}
+                    {isSelfEditMode ? "Đóng" : "Cập nhật thông tin của tôi"}
+                  </Button>
                 )}
-              </form>
-            </CardContent>
-          </Card>
+                {canEditInfo && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditMode(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Pencil size={14} />
+                    Chỉnh sửa hồ sơ
+                  </Button>
+                )}
+              </div>
+
+              {/* Self-edit mini form (chỉ hiện khi isSelf bật) */}
+              {isSelf && isSelfEditMode && (
+                <Card className="border-primary/30 shadow-sm bg-primary/5">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Pencil size={16} className="text-primary" />
+                      Cập nhật thông tin cá nhân
+                    </CardTitle>
+                    <CardDescription>
+                      Bạn chỉ có thể cập nhật số điện thoại, email cá nhân và địa chỉ tạm trú.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleSelfUpdate} className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <Label htmlFor="self-phone">Số điện thoại</Label>
+                          <Input
+                            id="self-phone"
+                            placeholder="Nhập số điện thoại..."
+                            value={phone}
+                            onChange={e => setPhone(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="self-personal-email">Email cá nhân</Label>
+                          <Input
+                            id="self-personal-email"
+                            type="email"
+                            placeholder="Nhập email cá nhân..."
+                            value={personalEmail}
+                            onChange={e => setPersonalEmail(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="self-current-address">Địa chỉ tạm trú hiện tại</Label>
+                          <Input
+                            id="self-current-address"
+                            placeholder="Nhập địa chỉ tạm trú..."
+                            value={currentAddress}
+                            onChange={e => setCurrentAddress(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-3">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsSelfEditMode(false)}
+                        >
+                          Hủy
+                        </Button>
+                        <Button
+                          type="submit"
+                          size="sm"
+                          disabled={selfUpdateMutation.isPending}
+                        >
+                          {selfUpdateMutation.isPending && <Loader2 size={14} className="animate-spin mr-2" />}
+                          Lưu thay đổi
+                        </Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Thông tin cơ bản */}
+              <SectionCard title="Thông tin cơ bản">
+                <InfoRow icon={<User size={12} />} label="Họ và đệm" value={employee.lastName} />
+                <InfoRow icon={<User size={12} />} label="Tên" value={employee.firstName} />
+                <InfoRow icon={<Hash size={12} />} label="Giới tính" value={fmtGender(employee.gender)} />
+                <InfoRow icon={<Calendar size={12} />} label="Ngày sinh" value={fmtDate(employee.dateOfBirth)} />
+                <InfoRow icon={<Phone size={12} />} label="Số điện thoại" value={employee.phone} />
+                <InfoRow icon={<Calendar size={12} />} label="Ngày vào làm" value={fmtDate(employee.hireDate)} />
+                {employee.probationEndDate && (
+                  <InfoRow icon={<Calendar size={12} />} label="Hết thử việc" value={fmtDate(employee.probationEndDate)} />
+                )}
+                {employee.terminationDate && (
+                  <InfoRow icon={<Calendar size={12} />} label="Ngày thôi việc" value={fmtDate(employee.terminationDate)} />
+                )}
+              </SectionCard>
+
+              {/* Liên hệ */}
+              <SectionCard title="Email & Liên hệ">
+                <InfoRow icon={<Mail size={12} />} label="Email công ty" value={employee.email} />
+                <InfoRow icon={<Mail size={12} />} label="Email cá nhân" value={employee.personalEmail} />
+              </SectionCard>
+
+              {/* Giấy tờ */}
+              <SectionCard title="Giấy tờ tùy thân">
+                <InfoRow icon={<CreditCard size={12} />} label="Số CCCD/CMND" value={employee.idCardNumber} />
+                <InfoRow icon={<Calendar size={12} />} label="Ngày cấp" value={fmtDate(employee.idCardIssuedDate)} />
+                <InfoRow icon={<MapPin size={12} />} label="Nơi cấp" value={employee.idCardIssuedPlace} full />
+              </SectionCard>
+
+              {/* Địa chỉ */}
+              <SectionCard title="Địa chỉ">
+                <InfoRow icon={<MapPin size={12} />} label="Địa chỉ thường trú (theo CCCD)" value={employee.permanentAddress} full />
+                <InfoRow icon={<MapPin size={12} />} label="Địa chỉ tạm trú hiện tại" value={employee.currentAddress} full />
+              </SectionCard>
+
+              {/* Tổ chức */}
+              <SectionCard title="Phân công tổ chức">
+                <InfoRow icon={<Building size={12} />} label="Phòng ban" value={employee.departmentName} />
+                <InfoRow icon={<Briefcase size={12} />} label="Chức danh" value={employee.positionName} />
+                <InfoRow icon={<Users size={12} />} label="Quản lý trực tiếp" value={employee.managerName} />
+              </SectionCard>
+
+              {/* Tài chính — chỉ hiện với HR_ADMIN trở lên */}
+              {canManage && (
+                <SectionCard title="Thuế & Tài khoản ngân hàng">
+                  <InfoRow icon={<Hash size={12} />} label="Mã số thuế cá nhân" value={employee.taxCode} />
+                  <InfoRow icon={<Hash size={12} />} label="Mã BHXH" value={employee.socialInsuranceId} />
+                  <InfoRow icon={<Landmark size={12} />} label="Số tài khoản ngân hàng" value={employee.bankAccountNumber} />
+                  <InfoRow icon={<Landmark size={12} />} label="Tên ngân hàng" value={employee.bankName} />
+                </SectionCard>
+              )}
+            </div>
+          )}
         </TabsContent>
 
-        {/* Tab 2: Hợp đồng lao động */}
+        {/* ─── Tab 2: Hợp đồng ─────────────────────────────────────────────── */}
         <TabsContent value="contracts">
           <Card className="shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -482,16 +728,13 @@ const EmployeeDetailPage: React.FC = () => {
               </div>
               {canManage && (
                 <Button onClick={() => setIsContractOpen(true)} className="flex items-center gap-2">
-                  <Plus size={16} />
-                  Ký kết hợp đồng
+                  <Plus size={16} /> Ký kết hợp đồng
                 </Button>
               )}
             </CardHeader>
             <CardContent>
               {isContractsLoading ? (
-                <div className="flex justify-center py-10">
-                  <Loader2 className="animate-spin" />
-                </div>
+                <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div>
               ) : contracts.length === 0 ? (
                 <div className="text-center py-10 text-muted-foreground italic text-sm">
                   Chưa ký hợp đồng lao động nào.
@@ -503,9 +746,7 @@ const EmployeeDetailPage: React.FC = () => {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-foreground">{contract.contractNumber}</span>
-                          <Badge className="bg-muted text-muted-foreground border">
-                            {contract.contractType}
-                          </Badge>
+                          <Badge className="bg-muted text-muted-foreground border">{contract.contractType}</Badge>
                           {contract.status === "ACTIVE" ? (
                             <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">Hoạt động</Badge>
                           ) : (
@@ -513,19 +754,17 @@ const EmployeeDetailPage: React.FC = () => {
                           )}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          Thời hạn: {new Date(contract.startDate).toLocaleDateString("vi-VN")} - {contract.endDate ? new Date(contract.endDate).toLocaleDateString("vi-VN") : "Vô thời hạn"}
+                          Thời hạn: {fmtDate(contract.startDate)} — {contract.endDate ? fmtDate(contract.endDate) : "Vô thời hạn"}
                         </div>
                         <div className="text-sm font-semibold text-primary mt-1">
                           Lương cơ bản: {contract.baseSalary.toLocaleString("vi-VN")} VNĐ
                         </div>
                       </div>
-
                       <div className="mt-4 md:mt-0 flex gap-2">
                         {contract.documentUrl && (
                           <Button variant="outline" size="sm" asChild>
                             <a href={contract.documentUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5">
-                              <Download size={14} />
-                              Tải bản scan PDF
+                              <Download size={14} /> Tải bản scan PDF
                             </a>
                           </Button>
                         )}
@@ -538,7 +777,7 @@ const EmployeeDetailPage: React.FC = () => {
           </Card>
         </TabsContent>
 
-        {/* Tab 3: Onboarding Checklist */}
+        {/* ─── Tab 3: Checklist ─────────────────────────────────────────────── */}
         <TabsContent value="onboarding">
           <Card className="shadow-sm">
             <CardHeader>
@@ -546,15 +785,13 @@ const EmployeeDetailPage: React.FC = () => {
               <CardDescription>Các đầu việc cần hoàn thành khi nhân viên mới hội nhập.</CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Do DB lưu checklist mẫu ở trường text/notes hoặc cấu trúc đơn giản, ta hiển thị giao diện Checklist mock trực quan
-                  phục vụ wow user về UI/UX */}
               <div className="space-y-4 max-w-lg">
                 {[
                   { id: 1, task: "Nhận bàn giao thiết bị làm việc (Laptop, Màn hình)", status: "COMPLETED" },
                   { id: 2, task: "Ký kết hợp đồng thử việc/hợp đồng lao động", status: "COMPLETED" },
                   { id: 3, task: "Đăng ký tài khoản email công ty & Slack/Discord", status: "COMPLETED" },
                   { id: 4, task: "Nộp hồ sơ nhân sự bản cứng (CCCD, Bằng cấp)", status: "PENDING" },
-                  { id: 5, task: "Hoàn thành đào đào hội nhập nội quy công ty", status: "PENDING" }
+                  { id: 5, task: "Hoàn thành đào tạo hội nhập nội quy công ty", status: "PENDING" }
                 ].map(item => (
                   <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/20">
                     <div className="flex items-center gap-3">
@@ -567,7 +804,6 @@ const EmployeeDetailPage: React.FC = () => {
                         {item.task}
                       </span>
                     </div>
-
                     {canManage && item.status === "PENDING" && (
                       <Button variant="ghost" size="sm" className="text-xs text-primary hover:bg-primary/10">
                         Đánh dấu hoàn thành
@@ -581,14 +817,12 @@ const EmployeeDetailPage: React.FC = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Dialog Ký hợp đồng */}
+      {/* ── Dialog: Ký hợp đồng ────────────────────────────────────────────── */}
       <Dialog open={isContractOpen} onOpenChange={setIsContractOpen}>
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
             <DialogTitle>Ký kết hợp đồng lao động</DialogTitle>
-            <DialogDescription>
-              Thiết lập hợp đồng mới và tải lên bản scan hợp đồng PDF đính kèm.
-            </DialogDescription>
+            <DialogDescription>Thiết lập hợp đồng mới và tải lên bản scan hợp đồng PDF đính kèm.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateContract} className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
@@ -599,9 +833,7 @@ const EmployeeDetailPage: React.FC = () => {
               <div className="space-y-1">
                 <Label htmlFor="contract-type">Loại hợp đồng</Label>
                 <Select value={contractType} onValueChange={setContractType}>
-                  <SelectTrigger id="contract-type">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger id="contract-type"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="PROBATION">Thử việc (Probation)</SelectItem>
                     <SelectItem value="FIXED_TERM_1Y">Xác định thời hạn 1 năm</SelectItem>
@@ -611,7 +843,6 @@ const EmployeeDetailPage: React.FC = () => {
                 </Select>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label htmlFor="contract-start">Ngày bắt đầu *</Label>
@@ -622,7 +853,6 @@ const EmployeeDetailPage: React.FC = () => {
                 <Input id="contract-end" type="date" value={contractEnd} onChange={e => setContractEnd(e.target.value)} />
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label htmlFor="contract-salary">Lương cơ bản * (VNĐ)</Label>
@@ -633,26 +863,15 @@ const EmployeeDetailPage: React.FC = () => {
                 <Input id="contract-signed" type="date" value={signedAt} onChange={e => setSignedAt(e.target.value)} />
               </div>
             </div>
-
             <div className="space-y-1">
               <Label htmlFor="contract-pdf">Bản scan hợp đồng (PDF)</Label>
-              <Input 
-                id="contract-pdf" 
-                type="file" 
-                accept="application/pdf"
-                onChange={e => {
-                  if (e.target.files && e.target.files[0]) {
-                    setContractFile(e.target.files[0]);
-                  }
-                }}
-              />
+              <Input id="contract-pdf" type="file" accept="application/pdf"
+                onChange={e => { if (e.target.files?.[0]) setContractFile(e.target.files[0]); }} />
             </div>
-
             <div className="space-y-1">
               <Label htmlFor="contract-notes">Ghi chú</Label>
               <Textarea id="contract-notes" placeholder="Nhập ghi chú hợp đồng..." value={contractNotes} onChange={e => setContractNotes(e.target.value)} />
             </div>
-
             <DialogFooter className="pt-4">
               <Button type="button" variant="outline" onClick={() => setIsContractOpen(false)}>Hủy</Button>
               <Button type="submit" disabled={createContractMutation.isPending}>
@@ -664,16 +883,15 @@ const EmployeeDetailPage: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog Thôi việc */}
+      {/* ── Dialog: Thôi việc ──────────────────────────────────────────────── */}
       <Dialog open={isTerminateOpen} onOpenChange={setIsTerminateOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
-              <ShieldAlert />
-              Xác nhận thôi việc nhân sự
+              <ShieldAlert /> Xác nhận thôi việc nhân sự
             </DialogTitle>
             <DialogDescription>
-              Hành động này sẽ cập nhật trạng thái làm việc thành **Đã thôi việc (TERMINATED)** và lưu ngày nghỉ việc.
+              Hành động này sẽ cập nhật trạng thái thành <strong>Đã thôi việc (TERMINATED)</strong> và lưu ngày nghỉ việc.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleTerminateSubmit} className="space-y-4 py-2">

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { userApi, type UserResponse } from "../api/userApi";
 import { toastUtil } from "@/utils/toast";
@@ -165,12 +165,18 @@ const UserManagementPage: React.FC = () => {
   const [editingRoles, setEditingRoles] = useState<string[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserResponse | null>(null);
 
+  const manualScrollRef = useRef<HTMLDivElement>(null);
+
   const scrollToRoleManual = (roleValue: string) => {
-    // Đợi modal mount xong hoặc dùng setTimeout
     setTimeout(() => {
+      const container = manualScrollRef.current;
       const element = document.getElementById(`manual-${roleValue}`);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (container && element) {
+        // scroll bên trong container, không scroll toàn trang
+        const containerTop = container.getBoundingClientRect().top;
+        const elementTop = element.getBoundingClientRect().top;
+        const offset = elementTop - containerTop + container.scrollTop - 8;
+        container.scrollTo({ top: offset, behavior: "smooth" });
       }
     }, 100);
   };
@@ -384,7 +390,10 @@ const UserManagementPage: React.FC = () => {
                 </div>
 
                 {/* Scroll Area containing manual */}
-                <ScrollArea className="flex-1 pr-3 pb-8">
+                <div
+                  ref={manualScrollRef}
+                  className="flex-1 overflow-y-auto pr-3 pb-8"
+                >
                   <div className="space-y-6">
                     {ROLE_OPTIONS.map(role => {
                       const descInfo = ROLE_DESCRIPTIONS[role.value];
@@ -439,7 +448,7 @@ const UserManagementPage: React.FC = () => {
                       );
                     })}
                   </div>
-                </ScrollArea>
+                </div>
               </div>
             </SheetContent>
           </Sheet>

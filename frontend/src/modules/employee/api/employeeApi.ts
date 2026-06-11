@@ -110,6 +110,12 @@ export interface ContractRequest {
   notes?: string;
 }
 
+export interface SelfUpdateRequest {
+  phone?: string;
+  personalEmail?: string;
+  currentAddress?: string;
+}
+
 export const employeeApi = {
   getEmployees: async (
     search = "",
@@ -139,6 +145,11 @@ export const employeeApi = {
 
   updateEmployee: async (id: number, data: EmployeeUpdateRequest): Promise<EmployeeResponse> => {
     const response = (await api.put(`/employees/${id}`, data)) as any;
+    return response.data;
+  },
+
+  selfUpdate: async (id: number, data: SelfUpdateRequest): Promise<EmployeeResponse> => {
+    const response = (await api.patch(`/employees/${id}/self`, data)) as any;
     return response.data;
   },
 
