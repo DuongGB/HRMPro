@@ -45,6 +45,7 @@ const EmployeeDetailPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // State Dialogs
+  const [activeTab, setActiveTab] = useState("profile");
   const [isContractOpen, setIsContractOpen] = useState(false);
   const [isTerminateOpen, setIsTerminateOpen] = useState(false);
   const [terminationDate, setTerminationDate] = useState("");
@@ -344,7 +345,7 @@ const EmployeeDetailPage: React.FC = () => {
       </div>
 
       {/* Tabs Layout */}
-      <Tabs defaultValue="profile" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3 md:w-[400px] mb-4 bg-muted/60">
           <TabsTrigger value="profile">Hồ sơ</TabsTrigger>
           <TabsTrigger value="contracts">Hợp đồng</TabsTrigger>

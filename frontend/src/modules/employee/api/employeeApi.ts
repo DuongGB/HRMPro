@@ -21,7 +21,7 @@ export interface EmployeeResponse {
   hireDate: string;
   probationEndDate: string | null;
   terminationDate: string | null;
-  status: string; // ACTIVE|PROBATION|ON_LEAVE|TERMINATED
+  status: string;
   
   departmentId: number | null;
   departmentName: string | null;
