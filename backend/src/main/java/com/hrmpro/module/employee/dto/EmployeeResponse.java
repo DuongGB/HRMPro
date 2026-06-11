@@ -30,7 +30,7 @@ public class EmployeeResponse {
     private LocalDate hireDate;
     private LocalDate probationEndDate;
     private LocalDate terminationDate;
-    private String status; // ACTIVE|PROBATION|ON_LEAVE|TERMINATED
+    private String status; 
     
     private Long departmentId;
     private String departmentName;
@@ -43,6 +43,8 @@ public class EmployeeResponse {
     private String bankAccountNumber;
     private String bankName;
     private String socialInsuranceId;
+    
+    private Boolean isLinked;
     
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

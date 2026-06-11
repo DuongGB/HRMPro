@@ -10,6 +10,7 @@ import com.hrmpro.module.employee.dto.EmployeeUpdateRequest;
 import com.hrmpro.module.employee.dto.SelfUpdateRequest;
 import com.hrmpro.module.employee.entity.Employee;
 import com.hrmpro.module.employee.repository.EmployeeRepository;
+import com.hrmpro.module.auth.repository.UserRepository;
 import com.hrmpro.module.organization.entity.Department;
 import com.hrmpro.module.organization.entity.Position;
 import com.hrmpro.module.organization.repository.DepartmentRepository;
@@ -28,6 +29,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -40,6 +42,7 @@ public class EmployeeService {
     private final DepartmentRepository departmentRepository;
     private final PositionRepository positionRepository;
     private final MinioService minioService;
+    private final UserRepository userRepository;
 
     @Value("${app.minio.bucket.avatars:hrmpro-avatars}")
     private String avatarBucket;
@@ -51,8 +54,11 @@ public class EmployeeService {
     public PageResponse<EmployeeResponse> getEmployees(String search, Long departmentId, String status, Pageable pageable) {
         String searchPattern = (search == null || search.trim().isEmpty()) ? null : "%" + search.trim().toLowerCase() + "%";
         Page<Employee> employeePage = employeeRepository.findEmployeesWithFilters(searchPattern, departmentId, status, pageable);
+        
+        Set<Long> linkedEmployeeIds = userRepository.findAllLinkedEmployeeIds();
+
         List<EmployeeResponse> content = employeePage.getContent().stream()
-                .map(this::convertToResponse)
+                .map(emp -> convertToResponse(emp, linkedEmployeeIds.contains(emp.getId())))
                 .collect(Collectors.toList());
 
         return new PageResponse<>(
@@ -281,6 +287,11 @@ public class EmployeeService {
      * Map Entity sang Response DTO (tự động sinh Presigned URL cho avatar)
      */
     public EmployeeResponse convertToResponse(Employee emp) {
+        boolean isLinked = userRepository.existsByEmployeeId(emp.getId());
+        return convertToResponse(emp, isLinked);
+    }
+
+    public EmployeeResponse convertToResponse(Employee emp, boolean isLinked) {
         String avatarPresignedUrl = null;
         if (emp.getAvatarUrl() != null) {
             // Presigned url có thời hạn xem trong 15 phút
@@ -318,6 +329,7 @@ public class EmployeeService {
                 .bankAccountNumber(emp.getBankAccountNumber())
                 .bankName(emp.getBankName())
                 .socialInsuranceId(emp.getSocialInsuranceId())
+                .isLinked(isLinked)
                 .createdAt(emp.getCreatedAt())
                 .updatedAt(emp.getUpdatedAt())
                 .build();
