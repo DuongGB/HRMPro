@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Loader2,
   Shield,
+  ShieldCheck,
   Check,
   X,
   HelpCircle,
@@ -160,6 +161,8 @@ const UserManagementPage: React.FC = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isResetOpen, setIsResetOpen] = useState(false);
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
+  const [isEditRolesOpen, setIsEditRolesOpen] = useState(false);
+  const [editingRoles, setEditingRoles] = useState<string[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserResponse | null>(null);
 
   const scrollToRoleManual = (roleValue: string) => {
@@ -236,6 +239,21 @@ const UserManagementPage: React.FC = () => {
     }
   });
 
+  // Mutation: Cập nhật Roles
+  const updateRolesMutation = useMutation({
+    mutationFn: ({ id, roles }: { id: number; roles: string[] }) =>
+      userApi.updateRoles(id, roles),
+    onSuccess: (updatedUser) => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      toastUtil.success(`Đã cập nhật vai trò cho @${updatedUser.username}!`);
+      setIsEditRolesOpen(false);
+      setSelectedUser(null);
+    },
+    onError: (error: any) => {
+      toastUtil.error(error.message || "Cập nhật vai trò thất bại!");
+    }
+  });
+
   const resetCreateForm = () => {
     setUsername("");
     setPassword("");
@@ -282,6 +300,24 @@ const UserManagementPage: React.FC = () => {
     } else {
       setSelectedRoles(selectedRoles.filter(r => r !== role));
     }
+  };
+
+  const handleEditRolesCheckboxChange = (role: string, checked: boolean) => {
+    if (checked) {
+      setEditingRoles([...editingRoles, role]);
+    } else {
+      setEditingRoles(editingRoles.filter(r => r !== role));
+    }
+  };
+
+  const handleUpdateRoles = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    if (editingRoles.length === 0) {
+      toastUtil.error("Vui lòng chọn ít nhất một vai trò");
+      return;
+    }
+    updateRolesMutation.mutate({ id: selectedUser.id, roles: editingRoles });
   };
 
   // Lọc tìm kiếm client-side đơn giản cho trải nghiệm nhanh
@@ -582,6 +618,19 @@ const UserManagementPage: React.FC = () => {
                       <Button
                         variant="ghost"
                         size="icon"
+                        title="Cập nhật vai trò"
+                        onClick={() => {
+                          setSelectedUser(user);
+                          setEditingRoles([...user.roles]);
+                          setIsEditRolesOpen(true);
+                        }}
+                      >
+                        <ShieldCheck size={16} className="text-muted-foreground hover:text-primary" />
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         title="Xem chi tiết quyền"
                         onClick={() => {
                           setSelectedUser(user);
@@ -669,6 +718,87 @@ const UserManagementPage: React.FC = () => {
           </Button>
         </div>
       )}
+
+      {/* Dialog Cập nhật Roles */}
+      <Dialog open={isEditRolesOpen} onOpenChange={(open) => {
+        setIsEditRolesOpen(open);
+        if (!open) setSelectedUser(null);
+      }}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="text-primary h-5 w-5" />
+              Cập nhật vai trò
+            </DialogTitle>
+            <DialogDescription>
+              Chỉnh sửa vai trò hệ thống cho tài khoản{" "}
+              <span className="font-semibold text-foreground">@{selectedUser?.username}</span>.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateRoles} className="space-y-4 py-2">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Vai trò hệ thống (Roles)</Label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingRoles(ROLE_OPTIONS.map(r => r.value))}
+                    className="text-xs text-primary font-medium hover:underline underline-offset-2 transition-colors"
+                  >
+                    Chọn tất cả
+                  </button>
+                  <span className="text-muted-foreground text-xs">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setEditingRoles([])}
+                    className="text-xs text-muted-foreground font-medium hover:text-destructive hover:underline underline-offset-2 transition-colors"
+                  >
+                    Bỏ chọn tất cả
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 border rounded-md p-3 bg-muted/20">
+                {ROLE_OPTIONS.map(role => (
+                  <div key={role.value} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`edit-role-${role.value}`}
+                      checked={editingRoles.includes(role.value)}
+                      onCheckedChange={(checked) => handleEditRolesCheckboxChange(role.value, !!checked)}
+                    />
+                    <Label
+                      htmlFor={`edit-role-${role.value}`}
+                      className="text-xs font-normal cursor-pointer"
+                    >
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] font-semibold border ${
+                          editingRoles.includes(role.value) ? role.color : "border-muted text-muted-foreground"
+                        }`}
+                      >
+                        {role.label}
+                      </Badge>
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              {editingRoles.length === 0 && (
+                <p className="text-xs text-destructive">Cần chọn ít nhất một vai trò.</p>
+              )}
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setIsEditRolesOpen(false)}>Hủy</Button>
+              <Button
+                type="submit"
+                disabled={updateRolesMutation.isPending || editingRoles.length === 0}
+              >
+                {updateRolesMutation.isPending && <Loader2 size={16} className="animate-spin mr-2" />}
+                Lưu thay đổi
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog Reset Password */}
       <Dialog open={isResetOpen} onOpenChange={setIsResetOpen}>

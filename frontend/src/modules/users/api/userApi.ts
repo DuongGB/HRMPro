@@ -55,6 +55,11 @@ export const userApi = {
     await api.post(`/users/${id}/reset-password`, { newPassword });
   },
 
+  updateRoles: async (id: number, roles: string[]): Promise<UserResponse> => {
+    const response = (await api.put(`/users/${id}/roles`, { roles })) as any;
+    return response.data;
+  },
+
   // Mock hoặc tải danh sách nhân viên chưa có tài khoản để phục vụ liên kết
   getAvailableEmployees: async (): Promise<{ id: number; employeeCode: string; fullName: string }[]> => {
     try {
