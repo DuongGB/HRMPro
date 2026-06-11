@@ -3,6 +3,7 @@ package com.hrmpro.module.auth.controller;
 import com.hrmpro.common.dto.ApiResponse;
 import com.hrmpro.common.dto.PageResponse;
 import com.hrmpro.module.auth.dto.PasswordResetRequest;
+import com.hrmpro.module.auth.dto.UpdateRolesRequest;
 import com.hrmpro.module.auth.dto.UserCreateRequest;
 import com.hrmpro.module.auth.dto.UserResponse;
 import com.hrmpro.module.auth.service.UserService;
@@ -52,6 +53,15 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok(message, response));
     }
 
+    @PutMapping("/{id}/roles")
+    public ResponseEntity<ApiResponse<UserResponse>> updateUserRoles(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateRolesRequest request
+    ) {
+        UserResponse response = userService.updateUserRoles(id, request);
+        return ResponseEntity.ok(ApiResponse.ok("Cập nhật vai trò người dùng thành công", response));
+    }
+
     @PostMapping("/{id}/reset-password")
     public ResponseEntity<ApiResponse<Void>> resetPassword(
             @PathVariable Long id,
@@ -61,3 +71,4 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok("Đặt lại mật khẩu người dùng thành công", null));
     }
 }
+

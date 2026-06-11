@@ -4,6 +4,7 @@ import com.hrmpro.common.dto.PageResponse;
 import com.hrmpro.common.exception.AppException;
 import com.hrmpro.common.exception.ResourceNotFoundException;
 import com.hrmpro.module.auth.dto.PasswordResetRequest;
+import com.hrmpro.module.auth.dto.UpdateRolesRequest;
 import com.hrmpro.module.auth.dto.UserCreateRequest;
 import com.hrmpro.module.auth.dto.UserResponse;
 import com.hrmpro.module.auth.entity.Role;
@@ -127,6 +128,36 @@ public class UserService {
         userRepository.save(user);
         log.info("Đã đặt lại mật khẩu cho người dùng: {}", user.getUsername());
     }
+
+    /**
+     * Cập nhật vai trò (roles) cho người dùng (chỉ SUPER_ADMIN)
+     */
+    @Transactional
+    public UserResponse updateUserRoles(Long id, UpdateRolesRequest request) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với ID: " + id));
+
+        // Resolve các RoleType từ tên string
+        Set<Role> newRoles = new HashSet<>();
+        for (String roleName : request.getRoles()) {
+            try {
+                RoleType roleType = RoleType.valueOf(roleName.toUpperCase());
+                Role role = roleRepository.findByName(roleType)
+                        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy vai trò: " + roleName));
+                newRoles.add(role);
+            } catch (IllegalArgumentException e) {
+                throw new AppException("Vai trò không hợp lệ: " + roleName, HttpStatus.BAD_REQUEST);
+            }
+        }
+
+        user.getRoles().clear();
+        user.getRoles().addAll(newRoles);
+        User updatedUser = userRepository.save(user);
+
+        log.info("Đã cập nhật vai trò của người dùng {} thành: {}", user.getUsername(), request.getRoles());
+        return convertToUserResponse(updatedUser);
+    }
+
 
     /**
      * Helper mapping entity sang response DTO
