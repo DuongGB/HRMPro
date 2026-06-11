@@ -7,6 +7,7 @@ import com.hrmpro.common.service.MinioService;
 import com.hrmpro.module.employee.dto.EmployeeCreateRequest;
 import com.hrmpro.module.employee.dto.EmployeeResponse;
 import com.hrmpro.module.employee.dto.EmployeeUpdateRequest;
+import com.hrmpro.module.employee.dto.SelfUpdateRequest;
 import com.hrmpro.module.employee.entity.Employee;
 import com.hrmpro.module.employee.repository.EmployeeRepository;
 import com.hrmpro.module.organization.entity.Department;
@@ -204,6 +205,25 @@ public class EmployeeService {
 
         Employee updated = employeeRepository.save(employee);
         log.info("Đã cập nhật thông tin hồ sơ nhân viên: {}", updated.getFullName());
+        return convertToResponse(updated);
+    }
+
+    /**
+     * Nhân viên tự cập nhật thông tin cá nhân hạn chế (phone, personalEmail, currentAddress)
+     */
+    @Transactional
+    public EmployeeResponse selfUpdateEmployee(Long id, SelfUpdateRequest request) {
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy nhân viên với ID: " + id));
+
+        // Chỉ cập nhật các trường được phép — không đụng vào email công ty, phòng ban, v.v.
+        employee.setPhone(request.getPhone());
+        employee.setPersonalEmail(request.getPersonalEmail());
+        employee.setCurrentAddress(request.getCurrentAddress());
+        employee.setUpdatedAt(LocalDateTime.now());
+
+        Employee updated = employeeRepository.save(employee);
+        log.info("Nhân viên {} đã tự cập nhật thông tin cá nhân", updated.getFullName());
         return convertToResponse(updated);
     }
 

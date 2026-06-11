@@ -5,6 +5,7 @@ import com.hrmpro.common.dto.PageResponse;
 import com.hrmpro.module.employee.dto.EmployeeCreateRequest;
 import com.hrmpro.module.employee.dto.EmployeeResponse;
 import com.hrmpro.module.employee.dto.EmployeeUpdateRequest;
+import com.hrmpro.module.employee.dto.SelfUpdateRequest;
 import com.hrmpro.module.employee.service.EmployeeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -66,6 +67,16 @@ public class EmployeeController {
     ) {
         EmployeeResponse response = employeeService.updateEmployee(id, request);
         return ResponseEntity.ok(ApiResponse.ok("Cập nhật hồ sơ nhân viên thành công", response));
+    }
+
+    @PatchMapping("/{id}/self")
+    @PreAuthorize("@hrmSecurity.isSelf(#id)")
+    public ResponseEntity<ApiResponse<EmployeeResponse>> selfUpdateEmployee(
+            @PathVariable Long id,
+            @Valid @RequestBody SelfUpdateRequest request
+    ) {
+        EmployeeResponse response = employeeService.selfUpdateEmployee(id, request);
+        return ResponseEntity.ok(ApiResponse.ok("Cập nhật thông tin cá nhân thành công", response));
     }
 
     @PostMapping(value = "/{id}/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
