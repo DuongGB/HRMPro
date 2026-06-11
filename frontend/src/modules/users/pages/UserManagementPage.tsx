@@ -2,6 +2,8 @@ import React, { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { userApi, type UserResponse } from "../api/userApi";
 import { toastUtil } from "@/utils/toast";
+import { employeeApi } from "../../employee/api/employeeApi";
+import { useDebounce } from "../../../hooks/useDebounce";
 import { 
   Plus, 
   Search, 
@@ -38,13 +40,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -56,7 +51,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 const ROLE_OPTIONS = [
   { value: "SUPER_ADMIN", label: "Super Admin", color: "bg-red-500/10 text-red-500 border-red-500/20" },
@@ -185,7 +179,27 @@ const UserManagementPage: React.FC = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [selectedEmpId, setSelectedEmpId] = useState<string>("none");
+  const [selectedEmployeeName, setSelectedEmployeeName] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>(["EMPLOYEE"]);
+
+  // Dialog Chọn nhân viên liên kết
+  const [isSelectEmpOpen, setIsSelectEmpOpen] = useState(false);
+  const [empSearch, setEmpSearch] = useState("");
+  const empSearchDebounced = useDebounce(empSearch, 500);
+  const [empPage, setEmpPage] = useState(0);
+
+  // Query: Lấy danh sách nhân viên phục vụ Dialog chọn liên kết
+  const { data: empListData, isLoading: isEmpListLoading } = useQuery({
+    queryKey: ["employees-list-dialog", empSearchDebounced, empPage],
+    queryFn: () => employeeApi.getEmployees(empSearchDebounced, null, "", empPage, 5),
+    enabled: isSelectEmpOpen,
+  });
+
+  const handleSelectEmployee = (empId: number, empCode: string, fullName: string) => {
+    setSelectedEmpId(empId.toString());
+    setSelectedEmployeeName(`${empCode} - ${fullName}`);
+    setIsSelectEmpOpen(false);
+  };
 
   // Form State Reset Pass
   const [newPassword, setNewPassword] = useState("");
@@ -194,13 +208,6 @@ const UserManagementPage: React.FC = () => {
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["users", page],
     queryFn: () => userApi.getUsers(page, 10),
-  });
-
-  // Query: Lấy danh sách nhân viên để liên kết tài khoản
-  const { data: employees = [] } = useQuery({
-    queryKey: ["available-employees"],
-    queryFn: () => userApi.getAvailableEmployees(),
-    enabled: isCreateOpen,
   });
 
   // Mutation: Tạo tài khoản
@@ -264,6 +271,7 @@ const UserManagementPage: React.FC = () => {
     setUsername("");
     setPassword("");
     setSelectedEmpId("none");
+    setSelectedEmployeeName(null);
     setSelectedRoles(["EMPLOYEE"]);
   };
 
@@ -491,19 +499,40 @@ const UserManagementPage: React.FC = () => {
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="create-employee">Nhân viên liên kết</Label>
-                  <Select value={selectedEmpId} onValueChange={setSelectedEmpId}>
-                    <SelectTrigger id="create-employee">
-                      <SelectValue placeholder="Chọn nhân viên..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Không liên kết (Tài khoản IT/Admin)</SelectItem>
-                      {employees.map(emp => (
-                        <SelectItem key={emp.id} value={emp.id.toString()}>
-                          {emp.employeeCode} - {emp.fullName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-2">
+                    {selectedEmpId !== "none" ? (
+                      <div className="flex items-center justify-between border rounded-md px-3 py-2 bg-muted/30 w-full text-sm">
+                        <span className="font-medium text-foreground">
+                          {selectedEmployeeName || `ID: ${selectedEmpId}`}
+                        </span>
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                          onClick={() => {
+                            setSelectedEmpId("none");
+                            setSelectedEmployeeName(null);
+                          }}
+                        >
+                          <X size={14} />
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button 
+                        type="button"
+                        variant="outline" 
+                        className="w-full justify-start text-muted-foreground font-normal"
+                        onClick={() => {
+                          setEmpSearch("");
+                          setEmpPage(0);
+                          setIsSelectEmpOpen(true);
+                        }}
+                      >
+                        Chọn nhân viên liên kết (hoặc bỏ qua)...
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Vai trò hệ thống (Roles)</Label>
@@ -533,6 +562,117 @@ const UserManagementPage: React.FC = () => {
                   </Button>
                 </DialogFooter>
               </form>
+            </DialogContent>
+          </Dialog>
+
+          {/* Dialog Chọn nhân viên liên kết */}
+          <Dialog open={isSelectEmpOpen} onOpenChange={setIsSelectEmpOpen}>
+            <DialogContent className="sm:max-w-[550px]">
+              <DialogHeader>
+                <DialogTitle>Chọn nhân viên liên kết</DialogTitle>
+                <DialogDescription>
+                  Tìm kiếm và chọn nhân viên để liên kết với tài khoản mới. Nhân viên đã có tài khoản sẽ không thể chọn.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4 py-2">
+                <div className="flex items-center gap-2 bg-background border rounded-md px-3 py-1.5">
+                  <Search size={16} className="text-muted-foreground" />
+                  <Input 
+                    placeholder="Tìm theo tên, mã nhân viên..." 
+                    value={empSearch}
+                    onChange={(e) => {
+                      setEmpSearch(e.target.value);
+                      setEmpPage(0);
+                    }}
+                    className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-0 h-7 text-sm w-full"
+                  />
+                </div>
+
+                <div className="border rounded-md overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Mã NV</TableHead>
+                        <TableHead>Họ và tên</TableHead>
+                        <TableHead>Phòng ban</TableHead>
+                        <TableHead className="text-right">Thao tác</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isEmpListLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                            <Loader2 size={16} className="animate-spin inline mr-2" /> Đang tải danh sách...
+                          </TableCell>
+                        </TableRow>
+                      ) : !empListData?.content || empListData.content.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                            Không tìm thấy nhân viên phù hợp
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        empListData.content.map((emp) => (
+                          <TableRow key={emp.id}>
+                            <TableCell className="font-mono text-xs">{emp.employeeCode}</TableCell>
+                            <TableCell className="font-medium text-xs md:text-sm">{emp.fullName}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{emp.departmentName || "Chưa phân phòng"}</TableCell>
+                            <TableCell className="text-right">
+                              {emp.isLinked ? (
+                                <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 text-xs">
+                                  Đã có tài khoản
+                                </Badge>
+                              ) : (
+                                <Button 
+                                  type="button"
+                                  size="sm" 
+                                  variant="secondary"
+                                  onClick={() => handleSelectEmployee(emp.id, emp.employeeCode, emp.fullName)}
+                                >
+                                  Chọn
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {empListData && empListData.totalPages > 1 && (
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-xs text-muted-foreground">
+                      Trang {empListData.page + 1} / {empListData.totalPages}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Button 
+                        type="button"
+                        variant="outline" 
+                        size="sm" 
+                        disabled={empListData.page === 0}
+                        onClick={() => setEmpPage(empListData.page - 1)}
+                      >
+                        Trước
+                      </Button>
+                      <Button 
+                        type="button"
+                        variant="outline" 
+                        size="sm" 
+                        disabled={empListData.page === empListData.totalPages - 1}
+                        onClick={() => setEmpPage(empListData.page + 1)}
+                      >
+                        Sau
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsSelectEmpOpen(false)}>Đóng</Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>

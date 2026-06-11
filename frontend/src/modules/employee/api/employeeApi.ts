@@ -34,6 +34,7 @@ export interface EmployeeResponse {
   bankAccountNumber: string | null;
   bankName: string | null;
   socialInsuranceId: string | null;
+  isLinked?: boolean;
 }
 
 export interface EmployeeCreateRequest {

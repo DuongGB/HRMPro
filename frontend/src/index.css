@@ -58,3 +58,34 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
+
+/* ── Page Transition Animations ── */
+@keyframes slide-in-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.page-enter-forward {
+  animation: slide-in-from-right 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.page-enter-back {
+  animation: slide-in-from-left 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}

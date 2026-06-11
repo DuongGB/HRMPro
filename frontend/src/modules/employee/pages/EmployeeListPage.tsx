@@ -83,7 +83,6 @@ const EmployeeListPage: React.FC = () => {
   const [gender, setGender] = useState("MALE");
   const [hireDate, setHireDate] = useState("");
   const [formDeptId, setFormDeptId] = useState("none");
-  const [formPosId, setFormPosId] = useState("none");
 
   // Query: Danh sách nhân viên
   const { data, isLoading, isFetching, refetch } = useQuery({
@@ -101,13 +100,6 @@ const EmployeeListPage: React.FC = () => {
   const { data: departments = [] } = useQuery({
     queryKey: ["flat-departments"],
     queryFn: organizationApi.getDepartments,
-  });
-
-  // Query: Danh sách chức danh phục vụ form
-  const { data: positions = [] } = useQuery({
-    queryKey: ["flat-positions", formDeptId],
-    queryFn: () => formDeptId !== "none" ? organizationApi.getPositionsByDept(Number(formDeptId)) : Promise.resolve([]),
-    enabled: formDeptId !== "none",
   });
 
   // Mutation: Thêm nhân viên mới
@@ -133,7 +125,6 @@ const EmployeeListPage: React.FC = () => {
     setGender("MALE");
     setHireDate("");
     setFormDeptId("none");
-    setFormPosId("none");
   };
 
   const handleCreateEmployee = (e: React.FormEvent) => {
@@ -152,7 +143,6 @@ const EmployeeListPage: React.FC = () => {
       gender,
       hireDate,
       departmentId: formDeptId === "none" ? undefined : Number(formDeptId),
-      positionId: formPosId === "none" ? undefined : Number(formPosId),
     });
   };
 
@@ -271,35 +261,19 @@ const EmployeeListPage: React.FC = () => {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <Label htmlFor="form-dept">Phòng ban</Label>
-                      <Select value={formDeptId} onValueChange={(val) => { setFormDeptId(val); setFormPosId("none"); }}>
-                        <SelectTrigger id="form-dept">
-                          <SelectValue placeholder="Chọn phòng ban..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Chưa phân phòng</SelectItem>
-                          {departments.map(d => (
-                            <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="form-pos">Chức danh</Label>
-                      <Select value={formPosId} onValueChange={setFormPosId} disabled={formDeptId === "none"}>
-                        <SelectTrigger id="form-pos">
-                          <SelectValue placeholder="Chọn chức danh..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Chưa phân chức danh</SelectItem>
-                          {positions.map(p => (
-                            <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="form-dept">Phòng ban</Label>
+                    <Select value={formDeptId} onValueChange={(val) => setFormDeptId(val)}>
+                      <SelectTrigger id="form-dept">
+                        <SelectValue placeholder="Chọn phòng ban..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Chưa phân phòng</SelectItem>
+                        {departments.map(d => (
+                          <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <DialogFooter className="pt-4">

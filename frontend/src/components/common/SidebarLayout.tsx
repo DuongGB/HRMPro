@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { logout } from "../../store/slices/authSlice";
 import { cn } from "@/lib/utils";
@@ -28,6 +28,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
+import AnimatedOutlet from "@/components/common/AnimatedOutlet";
 
 const SidebarLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -221,8 +222,8 @@ const SidebarLayout: React.FC = () => {
         </header>
 
         {/* Scrollable Main Area */}
-        <main className="flex-1 overflow-auto p-4 md:p-6 bg-muted/20">
-          <Outlet />
+        <main className="flex-1 overflow-auto overflow-x-hidden p-4 md:p-6 bg-muted/20">
+          <AnimatedOutlet />
         </main>
       </div>
     </div>
