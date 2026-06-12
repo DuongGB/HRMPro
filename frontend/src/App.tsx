@@ -25,6 +25,7 @@ const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false,
       retry: 1,
+      staleTime: 30 * 1000, // Dữ liệu được coi là fresh trong 30s, tránh refetch khi re-mount nhanh
     },
   },
 });

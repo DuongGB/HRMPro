@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useDebounce } from "../../../hooks/useDebounce";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { employeeApi } from "../api/employeeApi";
@@ -70,6 +71,7 @@ const EmployeeListPage: React.FC = () => {
   // Search & Filter state
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 400);
   const [selectedDeptId, setSelectedDeptId] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -84,11 +86,11 @@ const EmployeeListPage: React.FC = () => {
   const [hireDate, setHireDate] = useState("");
   const [formDeptId, setFormDeptId] = useState("none");
 
-  // Query: Danh sách nhân viên
+  // Query: Danh sách nhân viên (sử dụng debouncedSearch để tránh spam API)
   const { data, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ["employees", page, search, selectedDeptId, selectedStatus],
+    queryKey: ["employees", page, debouncedSearch, selectedDeptId, selectedStatus],
     queryFn: () => employeeApi.getEmployees(
-      search,
+      debouncedSearch,
       selectedDeptId === "all" ? null : Number(selectedDeptId),
       selectedStatus === "all" ? "" : selectedStatus,
       page,
@@ -96,10 +98,11 @@ const EmployeeListPage: React.FC = () => {
     ),
   });
 
-  // Query: Danh sách phòng ban phục vụ bộ lọc
+  // Query: Danh sách phòng ban phục vụ bộ lọc (dữ liệu ít thay đổi, cache 5 phút)
   const { data: departments = [] } = useQuery({
     queryKey: ["flat-departments"],
     queryFn: organizationApi.getDepartments,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Mutation: Thêm nhân viên mới

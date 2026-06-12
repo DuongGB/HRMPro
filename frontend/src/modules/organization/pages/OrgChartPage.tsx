@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { organizationApi, type DepartmentResponse } from "../api/organizationApi";
 import { toast } from "sonner";
 import { usePermission } from "../../../hooks/usePermission";
+import { useDebounce } from "../../../hooks/useDebounce";
 import { employeeApi, type EmployeeResponse } from "@/modules/employee/api/employeeApi";
 import { 
   Building2, 
@@ -306,6 +307,7 @@ const OrgChartPage: React.FC = () => {
   // States chọn quản lý từ Dialog nhân viên
   const [isEmployeeDialogOpen, setIsEmployeeDialogOpen] = useState(false);
   const [employeeSearch, setEmployeeSearch] = useState("");
+  const debouncedEmployeeSearch = useDebounce(employeeSearch, 400);
   const [employeePage, setEmployeePage] = useState(0);
   const [selectedManagerName, setSelectedManagerName] = useState("");
 
@@ -319,16 +321,17 @@ const OrgChartPage: React.FC = () => {
   const [viewDeptName, setViewDeptName] = useState("");
   const [viewDeptPage, setViewDeptPage] = useState(0);
 
-  // Query: Lấy cây phòng ban
+  // Query: Lấy cây phòng ban (cache 2 phút, invalidate khi mutation thành công)
   const { data: tree = [], isLoading } = useQuery({
     queryKey: ["department-tree"],
     queryFn: organizationApi.getDepartmentTree,
+    staleTime: 2 * 60 * 1000,
   });
 
-  // Query: Lấy danh sách nhân viên phục vụ việc chọn quản lý
+  // Query: Lấy danh sách nhân viên phục vụ việc chọn quản lý (dùng debounce tránh spam API)
   const { data: employeeData, isLoading: isLoadingEmployees } = useQuery({
-    queryKey: ["employees-select-list", employeeSearch, employeePage],
-    queryFn: () => employeeApi.getEmployees(employeeSearch, null, "ACTIVE", employeePage, 6),
+    queryKey: ["employees-select-list", debouncedEmployeeSearch, employeePage],
+    queryFn: () => employeeApi.getEmployees(debouncedEmployeeSearch, null, "ACTIVE", employeePage, 6),
     enabled: isEmployeeDialogOpen,
   });
 
