@@ -34,6 +34,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 
 // Component Đệ quy hiển thị Node Phòng Ban
 interface OrgNodeProps {
@@ -41,11 +58,12 @@ interface OrgNodeProps {
   onEdit: (dept: DepartmentResponse) => void;
   onAddChild: (parentId: number) => void;
   onDelete: (id: number) => void;
+  onViewEmployees: (deptId: number, deptName: string) => void;
   canManage: boolean;
   searchTerm: string;
 }
 
-const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, canManage, searchTerm }) => {
+const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, onViewEmployees, canManage, searchTerm }) => {
   const [collapsed, setCollapsed] = useState(false);
   const hasChildren = node.children && node.children.length > 0;
 
@@ -76,16 +94,27 @@ const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, c
   return (
     <div className="flex flex-col items-center">
       {/* Khối Phòng Ban Card */}
-      <div className={`relative group flex flex-col items-center bg-card border rounded-xl p-4 shadow-sm min-w-[240px] max-w-[280px] transition-all duration-300 hover:shadow-md ${
-        isMatched 
-          ? "border-primary ring-2 ring-primary/20 bg-primary/5 shadow-md scale-105" 
-          : "border-border hover:border-primary/50"
-      }`}>
+      <div 
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("button")) {
+            return;
+          }
+          onViewEmployees(node.id, node.name);
+        }}
+        className={`relative group flex flex-col items-center bg-card border rounded-xl p-4 shadow-sm min-w-[240px] max-w-[280px] transition-all duration-300 hover:shadow-md cursor-pointer ${
+          isMatched 
+            ? "border-primary ring-2 ring-primary/20 bg-primary/5 shadow-md scale-105" 
+            : "border-border hover:border-primary/50"
+        }`}
+      >
         
         {/* Nút collapse ở góc dưới nếu có con */}
         {hasChildren && (
           <button 
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={(e) => {
+              e.stopPropagation(); // Ngăn chặn sự kiện click lan ra Card cha mở dialog
+              setCollapsed(!collapsed);
+            }}
             className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full border bg-background flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all shadow-sm z-10"
           >
             {collapsed ? <ChevronRight size={12} className="transition-transform" /> : <ChevronDown size={12} className="transition-transform" />}
@@ -185,6 +214,7 @@ const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, c
                   onEdit={onEdit} 
                   onAddChild={onAddChild} 
                   onDelete={onDelete} 
+                  onViewEmployees={onViewEmployees}
                   canManage={canManage}
                   searchTerm={searchTerm}
                 />
@@ -213,6 +243,7 @@ const OrgChartPage: React.FC = () => {
   const dragStartRef = useRef({ x: 0, y: 0 });
   const startPanOffsetRef = useRef({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
+  const hasMovedRef = useRef(false);
 
   // Xử lý kéo thả (drag-to-pan)
   const handleStart = (clientX: number, clientY: number, target: HTMLElement) => {
@@ -231,6 +262,7 @@ const OrgChartPage: React.FC = () => {
     setIsDragging(true);
     dragStartRef.current = { x: clientX, y: clientY };
     startPanOffsetRef.current = { ...panOffset };
+    hasMovedRef.current = false;
   };
 
   const handleMove = (clientX: number, clientY: number) => {
@@ -238,6 +270,10 @@ const OrgChartPage: React.FC = () => {
     const dx = clientX - dragStartRef.current.x;
     const dy = clientY - dragStartRef.current.y;
     
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      hasMovedRef.current = true;
+    }
+
     // Chia cho zoom để tốc độ kéo 1:1 với con trỏ chuột trên màn hình
     setPanOffset({
       x: startPanOffsetRef.current.x + dx / zoom,
@@ -277,6 +313,12 @@ const OrgChartPage: React.FC = () => {
   const [selectedChildrenIds, setSelectedChildrenIds] = useState<number[]>([]);
   const [isChildrenDialogOpen, setIsChildrenDialogOpen] = useState(false);
 
+  // States xem danh sách nhân viên thuộc phòng ban
+  const [isViewEmployeesOpen, setIsViewEmployeesOpen] = useState(false);
+  const [viewDeptId, setViewDeptId] = useState<number | null>(null);
+  const [viewDeptName, setViewDeptName] = useState("");
+  const [viewDeptPage, setViewDeptPage] = useState(0);
+
   // Query: Lấy cây phòng ban
   const { data: tree = [], isLoading } = useQuery({
     queryKey: ["department-tree"],
@@ -289,6 +331,21 @@ const OrgChartPage: React.FC = () => {
     queryFn: () => employeeApi.getEmployees(employeeSearch, null, "ACTIVE", employeePage, 6),
     enabled: isEmployeeDialogOpen,
   });
+
+  // Query: Lấy danh sách nhân viên của phòng ban được click chọn
+  const { data: deptEmployeesData, isLoading: isLoadingDeptEmployees } = useQuery({
+    queryKey: ["employees-by-dept", viewDeptId, viewDeptPage],
+    queryFn: () => employeeApi.getEmployees("", viewDeptId, "", viewDeptPage, 5),
+    enabled: !!viewDeptId && isViewEmployeesOpen,
+  });
+
+  const handleViewEmployees = (deptId: number, deptName: string) => {
+    if (hasMovedRef.current) return; // Bỏ qua nếu vừa kéo thả sơ đồ
+    setViewDeptId(deptId);
+    setViewDeptName(deptName);
+    setViewDeptPage(0);
+    setIsViewEmployeesOpen(true);
+  };
 
   // Mutation: Tạo mới phòng ban
   const createMutation = useMutation({
@@ -395,6 +452,29 @@ const OrgChartPage: React.FC = () => {
   const handleClearManager = () => {
     setManagerId(null);
     setSelectedManagerName("");
+  };
+
+  // Lấy danh sách các phòng ban hợp lệ có thể làm cha
+  // Loại trừ chính nó và tất cả các phòng ban con cháu trực thuộc của nó để tránh vòng lặp vô hạn
+  const getEligibleParentDepts = () => {
+    if (!isEditMode || !selectedDept) {
+      return allDepts; // Nếu tạo mới, tất cả phòng ban đều có thể làm cha
+    }
+    
+    // Thu thập tất cả các ID của các con cháu trực thuộc
+    const descendantIds = new Set<number>();
+    const collectDescendants = (deptId: number) => {
+      const children = allDepts.filter(d => d.parentId === deptId);
+      children.forEach(child => {
+        descendantIds.add(child.id);
+        collectDescendants(child.id);
+      });
+    };
+    collectDescendants(selectedDept.id);
+
+    return allDepts.filter(
+      d => d.id !== selectedDept.id && !descendantIds.has(d.id)
+    );
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -583,6 +663,7 @@ const OrgChartPage: React.FC = () => {
                   onEdit={handleEdit} 
                   onAddChild={handleAddChild} 
                   onDelete={handleDelete} 
+                  onViewEmployees={handleViewEmployees}
                   canManage={canManage}
                   searchTerm={search}
                 />
@@ -605,7 +686,16 @@ const OrgChartPage: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredDepts.map(dept => (
-                <Card key={dept.id} className="hover:shadow-md transition-all border border-border/60 hover:border-primary/40 relative overflow-hidden group">
+                <Card 
+                  key={dept.id} 
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest("button")) {
+                      return;
+                    }
+                    handleViewEmployees(dept.id, dept.name);
+                  }}
+                  className="hover:shadow-md transition-all border border-border/60 hover:border-primary/40 relative overflow-hidden group cursor-pointer"
+                >
                   <div className="absolute top-0 left-0 w-1.5 h-full bg-primary/20 group-hover:bg-primary transition-colors" />
                   <CardHeader className="pb-3 pl-6">
                     <div className="flex items-start justify-between gap-2">
@@ -726,6 +816,30 @@ const OrgChartPage: React.FC = () => {
                   required
                 />
               </div>
+            </div>
+
+            {/* Phòng ban trực thuộc (Cha) */}
+            <div className="space-y-1">
+              <Label htmlFor="parent-dept">Phòng ban trực thuộc (Cấp trên)</Label>
+              <Select
+                value={parentId === null ? "none" : parentId.toString()}
+                onValueChange={(val) => {
+                  setParentId(val === "none" ? null : Number(val));
+                }}
+                disabled={isEditMode && selectedDept?.code === "DEP-EXEC"} // Ban giám đốc luôn là gốc
+              >
+                <SelectTrigger id="parent-dept" className="bg-background">
+                  <SelectValue placeholder="Chọn phòng ban trực thuộc..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Không trực thuộc (Cấp cao nhất / Gốc)</SelectItem>
+                  {getEligibleParentDepts().map((d) => (
+                    <SelectItem key={d.id} value={d.id.toString()}>
+                      {d.name} ({d.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1.5">
@@ -953,6 +1067,35 @@ const OrgChartPage: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
 
+          {/* Chọn tất cả / Bỏ chọn tất cả */}
+          <div className="flex items-center justify-between px-1 mb-2 shrink-0">
+            <span className="text-xs text-muted-foreground font-medium">
+              Danh sách phòng ban ({allDepts.filter(d => d.id !== selectedDept?.id).length})
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const eligibleIds = allDepts
+                    .filter(d => d.id !== selectedDept?.id)
+                    .map(d => d.id);
+                  setSelectedChildrenIds(eligibleIds);
+                }}
+                className="text-[11px] text-primary font-medium hover:underline underline-offset-2 transition-colors"
+              >
+                Chọn tất cả
+              </button>
+              <span className="text-muted-foreground text-[10px]">|</span>
+              <button
+                type="button"
+                onClick={() => setSelectedChildrenIds([])}
+                className="text-[11px] text-muted-foreground font-medium hover:text-destructive hover:underline underline-offset-2 transition-colors"
+              >
+                Bỏ chọn tất cả
+              </button>
+            </div>
+          </div>
+
           <div className="flex-1 overflow-y-auto border rounded-lg p-2 min-h-[250px] divide-y">
             {allDepts
               .filter(d => d.id !== selectedDept?.id) // Loại trừ chính nó
@@ -989,6 +1132,125 @@ const OrgChartPage: React.FC = () => {
           <DialogFooter className="pt-2 shrink-0">
             <Button type="button" size="sm" onClick={() => setIsChildrenDialogOpen(false)}>
               Hoàn tất
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog xem danh sách nhân viên thuộc phòng ban */}
+      <Dialog open={isViewEmployeesOpen} onOpenChange={setIsViewEmployeesOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[85vh] flex flex-col">
+          <DialogHeader className="pb-3 border-b shrink-0">
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <Building2 className="text-primary h-5 w-5" />
+              Thành viên phòng ban: {viewDeptName}
+            </DialogTitle>
+            <DialogDescription>
+              Danh sách nhân sự đang trực thuộc phòng ban này.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto py-4 min-h-[300px]">
+            {isLoadingDeptEmployees ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-2">
+                <Loader2 className="animate-spin text-primary h-8 w-8" />
+                <p className="text-sm text-muted-foreground">Đang tải danh sách nhân viên...</p>
+              </div>
+            ) : !deptEmployeesData?.content || deptEmployeesData.content.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground italic text-sm">
+                Không có nhân viên nào thuộc phòng ban này.
+              </div>
+            ) : (
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nhân viên</TableHead>
+                      <TableHead>Mã NV</TableHead>
+                      <TableHead>Chức danh</TableHead>
+                      <TableHead>Liên hệ</TableHead>
+                      <TableHead className="text-right">Trạng thái</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {deptEmployeesData.content.map((emp) => (
+                      <TableRow key={emp.id} className="hover:bg-muted/30">
+                        <TableCell>
+                          <div className="flex items-center gap-2.5">
+                            <Avatar className="h-8 w-8 border shadow-sm shrink-0">
+                              <AvatarImage src={emp.avatarUrl || ""} alt={emp.fullName} />
+                              <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
+                                {emp.lastName.charAt(0)}{emp.firstName.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-semibold text-foreground text-xs">{emp.fullName}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-[11px] text-muted-foreground">{emp.employeeCode}</TableCell>
+                        <TableCell className="text-xs font-medium text-foreground">{emp.positionName || "Chưa phân chức danh"}</TableCell>
+                        <TableCell>
+                          <div className="text-[10px] text-muted-foreground space-y-0.5">
+                            <div>{emp.email}</div>
+                            {emp.phone && <div>{emp.phone}</div>}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Badge 
+                            variant="outline" 
+                            className={`text-[9px] font-semibold px-2 py-0.5 border ${
+                              emp.status === "ACTIVE" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                              emp.status === "PROBATION" ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
+                              emp.status === "ON_LEAVE" ? "bg-blue-500/10 text-blue-500 border-blue-500/20" :
+                              "bg-destructive/10 text-destructive border-destructive/20"
+                            }`}
+                          >
+                            {emp.status === "ACTIVE" ? "Đang làm việc" :
+                             emp.status === "PROBATION" ? "Thử việc" :
+                             emp.status === "ON_LEAVE" ? "Nghỉ phép" : "Thôi việc"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+
+          {/* Phân trang */}
+          {deptEmployeesData && deptEmployeesData.totalPages > 1 && (
+            <div className="flex items-center justify-between pt-3 border-t mt-2 shrink-0">
+              <span className="text-[11px] text-muted-foreground">
+                Trang {viewDeptPage + 1} / {deptEmployeesData.totalPages} ({deptEmployeesData.totalElements} nhân viên)
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={viewDeptPage === 0}
+                  onClick={() => setViewDeptPage((p) => Math.max(0, p - 1))}
+                  className="h-7 text-[11px]"
+                >
+                  Trước
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={viewDeptPage >= deptEmployeesData.totalPages - 1}
+                  onClick={() => setViewDeptPage((p) => p + 1)}
+                  className="h-7 text-[11px]"
+                >
+                  Sau
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="pt-3 border-t mt-3 shrink-0">
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsViewEmployeesOpen(false)}>
+              Đóng
             </Button>
           </DialogFooter>
         </DialogContent>

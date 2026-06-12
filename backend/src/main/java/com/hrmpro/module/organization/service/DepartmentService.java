@@ -65,25 +65,6 @@ public class DepartmentService {
             }
         }
 
-        // Tái cấu trúc: Nếu có Ban Giám đốc, các root khác sẽ làm con của Ban Giám đốc
-        if (execDept != null) {
-            List<DepartmentResponse> finalRoots = new ArrayList<>();
-            finalRoots.add(execDept);
-
-            for (DepartmentResponse root : rootDepartments) {
-                if (!root.getId().equals(execDept.getId())) {
-                    if (execDept.getChildren() == null) {
-                        execDept.setChildren(new ArrayList<>());
-                    }
-                    // Đặt lại parentId và parentName để hiển thị chính xác
-                    root.setParentId(execDept.getId());
-                    root.setParentName(execDept.getName());
-                    execDept.getChildren().add(root);
-                }
-            }
-            return finalRoots;
-        }
-
         return rootDepartments;
     }
 
