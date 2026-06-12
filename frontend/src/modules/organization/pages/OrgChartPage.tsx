@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { organizationApi, type DepartmentResponse } from "../api/organizationApi";
-import { toastUtil } from "@/utils/toast";
+import { toast } from "sonner";
 import { usePermission } from "../../../hooks/usePermission";
 import { employeeApi, type EmployeeResponse } from "@/modules/employee/api/employeeApi";
 import { 
@@ -295,12 +295,12 @@ const OrgChartPage: React.FC = () => {
     mutationFn: organizationApi.createDepartment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["department-tree"] });
-      toastUtil.success("Tạo phòng ban mới thành công!");
+      toast.success("Tạo phòng ban mới thành công!");
       setIsOpen(false);
       resetForm();
     },
     onError: (error: any) => {
-      toastUtil.error(error.message || "Tạo phòng ban thất bại!");
+      toast.error(error.message || "Tạo phòng ban thất bại!");
     }
   });
 
@@ -310,12 +310,12 @@ const OrgChartPage: React.FC = () => {
       organizationApi.updateDepartment(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["department-tree"] });
-      toastUtil.success("Cập nhật thông tin thành công!");
+      toast.success("Cập nhật thông tin thành công!");
       setIsOpen(false);
       resetForm();
     },
     onError: (error: any) => {
-      toastUtil.error(error.message || "Cập nhật thất bại!");
+      toast.error(error.message || "Cập nhật thất bại!");
     }
   });
 
@@ -324,10 +324,10 @@ const OrgChartPage: React.FC = () => {
     mutationFn: organizationApi.deleteDepartment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["department-tree"] });
-      toastUtil.success("Đã ngừng hoạt động phòng ban!");
+      toast.success("Đã ngừng hoạt động phòng ban!");
     },
     onError: (error: any) => {
-      toastUtil.error(error.message || "Không thể ngừng hoạt động phòng ban này!");
+      toast.error(error.message || "Không thể ngừng hoạt động phòng ban này!");
     }
   });
 
@@ -369,13 +369,19 @@ const OrgChartPage: React.FC = () => {
   };
 
   const handleDelete = (id: number) => {
-    toastUtil.confirm(
+    toast.warning(
       "Xác nhận ngừng hoạt động phòng ban?",
-      () => deleteMutation.mutate(id),
       {
         description: "Các phòng ban con và nhân sự trực thuộc sẽ bị ảnh hưởng. Hành động này không thể hoàn tác.",
-        confirmLabel: "Ngừng hoạt động",
-        cancelLabel: "Hủy"
+        action: {
+          label: "Ngừng hoạt động",
+          onClick: () => deleteMutation.mutate(id),
+        },
+        cancel: {
+          label: "Hủy",
+          onClick: () => {},
+        },
+        duration: 8000,
       }
     );
   };
@@ -394,7 +400,7 @@ const OrgChartPage: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!code || !name) {
-      toastUtil.error("Vui lòng điền mã và tên phòng ban");
+      toast.error("Vui lòng điền mã và tên phòng ban");
       return;
     }
 

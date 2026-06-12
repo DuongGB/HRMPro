@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { employeeApi, type SelfUpdateRequest } from "../api/employeeApi";
-import { toastUtil } from "@/utils/toast";
+import { toast } from "sonner";
 import { usePermission } from "../../../hooks/usePermission";
 import { useAppSelector } from "../../../store";
 import {
@@ -181,29 +181,29 @@ const EmployeeDetailPage: React.FC = () => {
     mutationFn: (data: any) => employeeApi.updateEmployee(empId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee", empId] });
-      toastUtil.success("Cập nhật hồ sơ thành công!");
+      toast.success("Cập nhật hồ sơ thành công!");
       setIsEditMode(false);
     },
-    onError: (error: any) => toastUtil.error(error.message || "Cập nhật hồ sơ thất bại!"),
+    onError: (error: any) => toast.error(error.message || "Cập nhật hồ sơ thất bại!"),
   });
 
   const selfUpdateMutation = useMutation({
     mutationFn: (data: SelfUpdateRequest) => employeeApi.selfUpdate(empId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee", empId] });
-      toastUtil.success("Đã cập nhật thông tin cá nhân!");
+      toast.success("Đã cập nhật thông tin cá nhân!");
       setIsSelfEditMode(false);
     },
-    onError: (error: any) => toastUtil.error(error.message || "Cập nhật thất bại!"),
+    onError: (error: any) => toast.error(error.message || "Cập nhật thất bại!"),
   });
 
   const avatarMutation = useMutation({
     mutationFn: (file: File) => employeeApi.updateAvatar(empId, file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee", empId] });
-      toastUtil.success("Cập nhật ảnh đại diện thành công!");
+      toast.success("Cập nhật ảnh đại diện thành công!");
     },
-    onError: (error: any) => toastUtil.error(error.message || "Tải ảnh đại diện thất bại!"),
+    onError: (error: any) => toast.error(error.message || "Tải ảnh đại diện thất bại!"),
   });
 
   const createContractMutation = useMutation({
@@ -211,21 +211,21 @@ const EmployeeDetailPage: React.FC = () => {
       employeeApi.createContract(empId, req, file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contracts", empId] });
-      toastUtil.success("Ký kết hợp đồng thành công!");
+      toast.success("Ký kết hợp đồng thành công!");
       setIsContractOpen(false);
       resetContractForm();
     },
-    onError: (error: any) => toastUtil.error(error.message || "Tạo hợp đồng thất bại!"),
+    onError: (error: any) => toast.error(error.message || "Tạo hợp đồng thất bại!"),
   });
 
   const terminateMutation = useMutation({
     mutationFn: (termDate: string) => employeeApi.terminateEmployee(empId, termDate),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employee", empId] });
-      toastUtil.success("Đã ghi nhận thôi việc nhân sự!");
+      toast.success("Đã ghi nhận thôi việc nhân sự!");
       setIsTerminateOpen(false);
     },
-    onError: (error: any) => toastUtil.error(error.message || "Thao tác thất bại!"),
+    onError: (error: any) => toast.error(error.message || "Thao tác thất bại!"),
   });
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -293,7 +293,7 @@ const EmployeeDetailPage: React.FC = () => {
   const handleCreateContract = (e: React.FormEvent) => {
     e.preventDefault();
     if (!contractNum || !contractStart || !baseSalary) {
-      toastUtil.error("Vui lòng điền đủ thông tin hợp đồng bắt buộc");
+      toast.error("Vui lòng điền đủ thông tin hợp đồng bắt buộc");
       return;
     }
     createContractMutation.mutate({

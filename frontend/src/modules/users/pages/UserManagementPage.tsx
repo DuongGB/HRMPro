@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { userApi, type UserResponse } from "../api/userApi";
-import { toastUtil } from "@/utils/toast";
+import { toast } from "sonner";
 import { employeeApi } from "../../employee/api/employeeApi";
 import { useDebounce } from "../../../hooks/useDebounce";
 import { 
@@ -215,12 +215,12 @@ const UserManagementPage: React.FC = () => {
     mutationFn: userApi.createUser,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      toastUtil.success("Tạo tài khoản thành công!");
+      toast.success("Tạo tài khoản thành công!");
       setIsCreateOpen(false);
       resetCreateForm();
     },
     onError: (error: any) => {
-      toastUtil.error(error.message || "Tạo tài khoản thất bại!");
+      toast.error(error.message || "Tạo tài khoản thất bại!");
     }
   });
 
@@ -230,10 +230,10 @@ const UserManagementPage: React.FC = () => {
       userApi.toggleStatus(id, isActive),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      toastUtil.success(variables.isActive ? "Đã kích hoạt tài khoản!" : "Đã khóa tài khoản!");
+      toast.success(variables.isActive ? "Đã kích hoạt tài khoản!" : "Đã khóa tài khoản!");
     },
     onError: (error: any) => {
-      toastUtil.error(error.message || "Thao tác thất bại!");
+      toast.error(error.message || "Thao tác thất bại!");
     }
   });
 
@@ -242,13 +242,13 @@ const UserManagementPage: React.FC = () => {
     mutationFn: ({ id, pass }: { id: number; pass: string }) => 
       userApi.resetPassword(id, pass),
     onSuccess: () => {
-      toastUtil.success("Đặt lại mật khẩu thành công!");
+      toast.success("Đặt lại mật khẩu thành công!");
       setIsResetOpen(false);
       setNewPassword("");
       setSelectedUser(null);
     },
     onError: (error: any) => {
-      toastUtil.error(error.message || "Đặt lại mật khẩu thất bại!");
+      toast.error(error.message || "Đặt lại mật khẩu thất bại!");
     }
   });
 
@@ -258,12 +258,12 @@ const UserManagementPage: React.FC = () => {
       userApi.updateRoles(id, roles),
     onSuccess: (updatedUser) => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
-      toastUtil.success(`Đã cập nhật vai trò cho @${updatedUser.username}!`);
+      toast.success(`Đã cập nhật vai trò cho @${updatedUser.username}!`);
       setIsEditRolesOpen(false);
       setSelectedUser(null);
     },
     onError: (error: any) => {
-      toastUtil.error(error.message || "Cập nhật vai trò thất bại!");
+      toast.error(error.message || "Cập nhật vai trò thất bại!");
     }
   });
 
@@ -278,11 +278,11 @@ const UserManagementPage: React.FC = () => {
   const handleCreateUser = (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !password) {
-      toastUtil.error("Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu");
+      toast.error("Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu");
       return;
     }
     if (selectedRoles.length === 0) {
-      toastUtil.error("Vui lòng chọn ít nhất một vai trò");
+      toast.error("Vui lòng chọn ít nhất một vai trò");
       return;
     }
 
@@ -298,7 +298,7 @@ const UserManagementPage: React.FC = () => {
     e.preventDefault();
     if (!selectedUser || !newPassword) return;
     if (newPassword.length < 6) {
-      toastUtil.error("Mật khẩu mới phải từ 6 ký tự trở lên");
+      toast.error("Mật khẩu mới phải từ 6 ký tự trở lên");
       return;
     }
 
@@ -328,7 +328,7 @@ const UserManagementPage: React.FC = () => {
     e.preventDefault();
     if (!selectedUser) return;
     if (editingRoles.length === 0) {
-      toastUtil.error("Vui lòng chọn ít nhất một vai trò");
+      toast.error("Vui lòng chọn ít nhất một vai trò");
       return;
     }
     updateRolesMutation.mutate({ id: selectedUser.id, roles: editingRoles });
@@ -808,13 +808,19 @@ const UserManagementPage: React.FC = () => {
                           title="Khóa tài khoản"
                           className="text-destructive hover:bg-destructive/10"
                           onClick={() => {
-                            toastUtil.confirm(
+                            toast.warning(
                               `Bạn có chắc chắn muốn khóa tài khoản @${user.username}?`,
-                              () => toggleStatusMutation.mutate({ id: user.id, isActive: false }),
                               {
                                 description: "Người dùng này sẽ bị đăng xuất và không thể tiếp tục truy cập hệ thống.",
-                                confirmLabel: "Khóa",
-                                cancelLabel: "Hủy"
+                                action: {
+                                  label: "Khóa",
+                                  onClick: () => toggleStatusMutation.mutate({ id: user.id, isActive: false }),
+                                },
+                                cancel: {
+                                  label: "Hủy",
+                                  onClick: () => {},
+                                },
+                                duration: 8000,
                               }
                             );
                           }}

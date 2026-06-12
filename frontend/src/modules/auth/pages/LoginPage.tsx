@@ -5,7 +5,7 @@ import * as z from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate, useLocation } from "react-router-dom";
 import { User, Lock, Loader2 } from "lucide-react";
-import { toastUtil } from "@/utils/toast";
+import { toast } from "sonner";
 
 import { authApi } from "../api/authApi";
 import { useAppDispatch } from "../../../store";
@@ -56,12 +56,12 @@ const LoginPage: React.FC = () => {
     },
     onSuccess: (data) => {
       dispatch(loginSuccess(data));
-      toastUtil.success("Đăng nhập thành công!");
+      toast.success("Đăng nhập thành công!");
       navigate(from, { replace: true });
     },
     onError: (error: any) => {
       dispatch(loginFailure());
-      toastUtil.error(error.message || "Đăng nhập thất bại, vui lòng thử lại!");
+      toast.error(error.message || "Đăng nhập thất bại, vui lòng thử lại!");
     },
   });
 
