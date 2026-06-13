@@ -19,7 +19,7 @@ public class ContractRequest {
     @Size(max = 50, message = "Số hợp đồng tối đa 50 ký tự")
     private String contractNumber;
 
-    private String contractType; // PROBATION|FIXED_TERM_1Y|FIXED_TERM_3Y|INDEFINITE
+    private String contractType;
 
     @NotNull(message = "Ngày bắt đầu hợp đồng không được để trống")
     private LocalDate startDate;

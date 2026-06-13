@@ -8,7 +8,6 @@ import {
   FileText,
   DollarSign,
   TrendingDown,
-  Clock,
   TrendingUp,
   Activity,
   BarChart3,
@@ -29,18 +28,66 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
   AreaChart,
   Area
 } from "recharts";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 
 const DONUT_COLORS = ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899", "#06b6d4"];
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: any[];
+  label?: string;
+  valueFormatter?: (value: any) => string;
+}
+
+const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, label, valueFormatter }) => {
+  if (active && payload && payload.length) {
+    const isPie = !label || typeof label === "number";
+    const tooltipLabel = isPie ? null : label;
+
+    return (
+      <div className="bg-popover/95 text-popover-foreground border border-border/80 backdrop-blur-md p-3 rounded-lg shadow-xl text-xs space-y-1.5 min-w-[140px] transition-all duration-200">
+        {tooltipLabel && (
+          <p className="font-bold border-b border-border/60 pb-1 mb-1 text-foreground">
+            {tooltipLabel}
+          </p>
+        )}
+        <div className="space-y-1">
+          {payload.map((item: any, index: number) => {
+            const val = valueFormatter ? valueFormatter(item.value) : item.value;
+            return (
+              <div key={index} className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="h-2 w-2 rounded-full shrink-0"
+                    style={{ backgroundColor: item.color || item.fill || "hsl(var(--primary))" }}
+                  />
+                  <span className="text-muted-foreground">{item.name || "Giá trị"}:</span>
+                </div>
+                <span className="font-bold text-foreground">{val}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
 
 const DashboardPage: React.FC = () => {
   const { user, userRoles } = usePermission();
@@ -91,7 +138,7 @@ const DashboardPage: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
-            Xin chào, {user?.fullName || user?.username}!
+            Xin chào, {(user as any)?.fullName || user?.username}!
           </h1>
           <p className="text-muted-foreground mt-1">
             Chào mừng bạn quay trở lại với Hệ thống Quản lý Nhân sự HRMPro. Dưới đây là thống kê tổng quan.
@@ -180,14 +227,11 @@ const DashboardPage: React.FC = () => {
                 <div className="h-72 w-full mt-2">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={headcountData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                      <XAxis dataKey="departmentName" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} />
-                      <YAxis stroke="var(--muted-foreground)" fontSize={11} allowDecimals={false} />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: "var(--popover)", borderColor: "var(--border)", color: "var(--popover-foreground)" }}
-                        labelStyle={{ color: "var(--primary)", fontWeight: "bold" }}
-                      />
-                      <Bar dataKey="headcount" fill="var(--primary)" radius={[4, 4, 0, 0]} name="Nhân viên" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="departmentName" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} allowDecimals={false} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar dataKey="headcount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Nhân viên" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -220,14 +264,11 @@ const DashboardPage: React.FC = () => {
                           <stop offset="95%" stopColor="#0d9488" stopOpacity={0}/>
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                      <XAxis dataKey="monthYear" stroke="var(--muted-foreground)" fontSize={11} />
-                      <YAxis stroke="var(--muted-foreground)" fontSize={11} />
-                      <Tooltip
-                        formatter={(value: any) => [formatCurrency(Number(value)), "Quỹ lương"]}
-                        contentStyle={{ backgroundColor: "var(--popover)", borderColor: "var(--border)", color: "var(--popover-foreground)" }}
-                      />
-                      <Area type="monotone" dataKey="totalCost" stroke="#0d9488" fillUnit="đ" fill="url(#colorCost)" strokeWidth={2} name="Quỹ lương" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="monthYear" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                      <Tooltip content={<CustomTooltip valueFormatter={formatCurrency} />} />
+                      <Area type="monotone" dataKey="totalCost" stroke="#0d9488" fill="url(#colorCost)" strokeWidth={2} name="Quỹ lương" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -254,12 +295,10 @@ const DashboardPage: React.FC = () => {
                 <div className="h-72 w-full mt-2">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart layout="vertical" data={recruitmentFunnel}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                      <XAxis type="number" stroke="var(--muted-foreground)" fontSize={11} allowDecimals={false} />
-                      <YAxis type="category" dataKey="stageLabel" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: "var(--popover)", borderColor: "var(--border)", color: "var(--popover-foreground)" }}
-                      />
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={11} allowDecimals={false} />
+                      <YAxis type="category" dataKey="stageLabel" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} />
+                      <Tooltip content={<CustomTooltip />} />
                       <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} name="Ứng viên" />
                     </BarChart>
                   </ResponsiveContainer>
@@ -298,11 +337,11 @@ const DashboardPage: React.FC = () => {
                           dataKey="count"
                           nameKey="source"
                         >
-                          {recruitmentSource.map((entry, index) => (
+                          {recruitmentSource.map((_entry, index) => (
                             <Cell key={`cell-${index}`} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
                           ))}
                         </Pie>
-                        <Tooltip contentStyle={{ backgroundColor: "var(--popover)", borderColor: "var(--border)", color: "var(--popover-foreground)" }} />
+                        <Tooltip content={<CustomTooltip />} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>

@@ -1,18 +1,15 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { performanceApi, type ReviewCycleResponse, type PerformanceReviewResponse, type KpiRecordResponse } from "../api/performanceApi";
+import { performanceApi, type PerformanceReviewResponse, type KpiRecordResponse } from "../api/performanceApi";
 import { usePermission } from "../../../hooks/usePermission";
 import { toast } from "sonner";
 import {
   Award,
   Star,
   CheckCircle2,
-  Clock,
   Plus,
   TrendingUp,
-  Search,
   Settings,
-  User,
   Loader2,
   Trash2,
   FileText
