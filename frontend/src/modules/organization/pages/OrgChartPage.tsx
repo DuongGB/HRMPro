@@ -61,10 +61,11 @@ interface OrgNodeProps {
   onDelete: (id: number) => void;
   onViewEmployees: (deptId: number, deptName: string) => void;
   canManage: boolean;
+  canViewEmployees: boolean;
   searchTerm: string;
 }
 
-const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, onViewEmployees, canManage, searchTerm }) => {
+const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, onViewEmployees, canManage, canViewEmployees, searchTerm }) => {
   const [collapsed, setCollapsed] = useState(false);
   const hasChildren = node.children && node.children.length > 0;
 
@@ -100,9 +101,12 @@ const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, o
           if ((e.target as HTMLElement).closest("button")) {
             return;
           }
+          if (!canViewEmployees) return;
           onViewEmployees(node.id, node.name);
         }}
-        className={`relative group flex flex-col items-center bg-card border rounded-xl p-4 shadow-sm min-w-[240px] max-w-[280px] transition-all duration-300 hover:shadow-md cursor-pointer ${
+        className={`relative group flex flex-col items-center bg-card border rounded-xl p-4 shadow-sm min-w-[240px] max-w-[280px] transition-all duration-300 hover:shadow-md ${
+          canViewEmployees ? "cursor-pointer" : "cursor-default"
+        } ${
           isMatched 
             ? "border-primary ring-2 ring-primary/20 bg-primary/5 shadow-md scale-105" 
             : "border-border hover:border-primary/50"
@@ -217,6 +221,7 @@ const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, o
                   onDelete={onDelete} 
                   onViewEmployees={onViewEmployees}
                   canManage={canManage}
+                  canViewEmployees={canViewEmployees}
                   searchTerm={searchTerm}
                 />
               </div>
@@ -232,11 +237,13 @@ const OrgChartPage: React.FC = () => {
   const queryClient = useQueryClient();
   const { hasAnyRole } = usePermission();
   const canManage = hasAnyRole(["SUPER_ADMIN", "HR_ADMIN"]);
+  const canViewEmployees = hasAnyRole(["SUPER_ADMIN", "HR_ADMIN", "HR_STAFF", "MANAGER"]);
 
   // State cấu hình hiển thị
   const [viewMode, setViewMode] = useState<"tree" | "grid">("tree");
   const [zoom, setZoom] = useState<number>(0.8);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 400);
 
   // State & Refs quản lý kéo thả sơ đồ cây (Drag-to-Pan)
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
@@ -339,11 +346,12 @@ const OrgChartPage: React.FC = () => {
   const { data: deptEmployeesData, isLoading: isLoadingDeptEmployees } = useQuery({
     queryKey: ["employees-by-dept", viewDeptId, viewDeptPage],
     queryFn: () => employeeApi.getEmployees("", viewDeptId, "", viewDeptPage, 5),
-    enabled: !!viewDeptId && isViewEmployeesOpen,
+    enabled: !!viewDeptId && isViewEmployeesOpen && canViewEmployees,
   });
 
   const handleViewEmployees = (deptId: number, deptName: string) => {
     if (hasMovedRef.current) return; // Bỏ qua nếu vừa kéo thả sơ đồ
+    if (!canViewEmployees) return;
     setViewDeptId(deptId);
     setViewDeptName(deptName);
     setViewDeptPage(0);
@@ -518,9 +526,9 @@ const OrgChartPage: React.FC = () => {
 
   const allDepts = flattenDepartments(tree);
   const filteredDepts = allDepts.filter(dept => 
-    dept.name.toLowerCase().includes(search.toLowerCase()) ||
-    dept.code.toLowerCase().includes(search.toLowerCase()) ||
-    (dept.managerName && dept.managerName.toLowerCase().includes(search.toLowerCase()))
+    dept.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    dept.code.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    (dept.managerName && dept.managerName.toLowerCase().includes(debouncedSearch.toLowerCase()))
   );
 
   return (
@@ -668,7 +676,8 @@ const OrgChartPage: React.FC = () => {
                   onDelete={handleDelete} 
                   onViewEmployees={handleViewEmployees}
                   canManage={canManage}
-                  searchTerm={search}
+                  canViewEmployees={canViewEmployees}
+                  searchTerm={debouncedSearch}
                 />
               ))}
             </div>
@@ -695,9 +704,10 @@ const OrgChartPage: React.FC = () => {
                     if ((e.target as HTMLElement).closest("button")) {
                       return;
                     }
+                    if (!canViewEmployees) return;
                     handleViewEmployees(dept.id, dept.name);
                   }}
-                  className="hover:shadow-md transition-all border border-border/60 hover:border-primary/40 relative overflow-hidden group cursor-pointer"
+                  className={`${canViewEmployees ? "cursor-pointer" : "cursor-default"} hover:shadow-md transition-all border border-border/60 hover:border-primary/40 relative overflow-hidden group`}
                 >
                   <div className="absolute top-0 left-0 w-1.5 h-full bg-primary/20 group-hover:bg-primary transition-colors" />
                   <CardHeader className="pb-3 pl-6">
