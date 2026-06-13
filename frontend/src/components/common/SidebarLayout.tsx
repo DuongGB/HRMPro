@@ -101,8 +101,8 @@ const SidebarLayout: React.FC = () => {
     });
   }
 
-  // 6. Phân hệ Đánh giá hiệu suất (Trừ Super Admin, Recruiter)
-  if (roles.some(r => ["HR_ADMIN", "HR_STAFF", "MANAGER", "EMPLOYEE"].includes(r))) {
+  // 6. Phân hệ Đánh giá hiệu suất (Trừ Recruiter)
+  if (roles.some(r => ["SUPER_ADMIN", "HR_ADMIN", "HR_STAFF", "MANAGER", "EMPLOYEE"].includes(r))) {
     menuItems.push({
       key: "/performance",
       icon: <BarChart4 size={20} />,
@@ -110,14 +110,15 @@ const SidebarLayout: React.FC = () => {
     });
   }
 
-  // 7. Phân hệ Tuyển dụng (Chỉ HR Admin, Manager, Recruiter)
-  if (roles.some(r => ["HR_ADMIN", "MANAGER", "RECRUITER"].includes(r))) {
+  // 7. Phân hệ Tuyển dụng (Chỉ Super Admin, HR Admin, Manager, Recruiter)
+  if (roles.some(r => ["SUPER_ADMIN", "HR_ADMIN", "MANAGER", "RECRUITER"].includes(r))) {
     menuItems.push({
       key: "/recruitment",
       icon: <Megaphone size={20} />,
       label: "Tuyển dụng",
     });
   }
+
 
   // 8. Quản lý tài khoản (Chỉ dành cho SUPER_ADMIN)
   if (roles.includes("SUPER_ADMIN")) {

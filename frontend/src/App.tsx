@@ -21,6 +21,9 @@ import EmployeeDetailPage from "./modules/employee/pages/EmployeeDetailPage";
 import AttendancePage from "./modules/attendance/pages/AttendancePage";
 import LeavePage from "./modules/leave/pages/LeavePage";
 import PayrollPage from "./modules/payroll/pages/PayrollPage";
+import PerformancePage from "./modules/performance/pages/PerformancePage";
+import RecruitmentPage from "./modules/recruitment/pages/RecruitmentPage";
+
 
 // Khởi tạo Query Client cho React Query
 const queryClient = new QueryClient({
@@ -105,6 +108,26 @@ const App: React.FC = () => {
                   element={
                     <RoleProtectedRoute allowedRoles={["SUPER_ADMIN", "HR_ADMIN", "HR_STAFF", "MANAGER", "EMPLOYEE"]}>
                       <PayrollPage />
+                    </RoleProtectedRoute>
+                  }
+                />
+
+                {/* Phân hệ Đánh giá hiệu suất */}
+                <Route
+                  path="performance"
+                  element={
+                    <RoleProtectedRoute allowedRoles={["SUPER_ADMIN", "HR_ADMIN", "HR_STAFF", "MANAGER", "EMPLOYEE"]}>
+                      <PerformancePage />
+                    </RoleProtectedRoute>
+                  }
+                />
+
+                {/* Phân hệ Tuyển dụng */}
+                <Route
+                  path="recruitment"
+                  element={
+                    <RoleProtectedRoute allowedRoles={["SUPER_ADMIN", "HR_ADMIN", "HR_STAFF", "RECRUITER", "MANAGER"]}>
+                      <RecruitmentPage />
                     </RoleProtectedRoute>
                   }
                 />
