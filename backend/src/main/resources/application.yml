@@ -35,7 +35,7 @@ spring:
 app:
   jwt:
     secret: ${APP_JWT_SECRET}
-    expiration-ms: ${APP_JWT_EXPIR  ATION_MS}
+    expiration-ms: ${APP_JWT_EXPIRATION_MS}
     refresh-expiration-ms: ${APP_JWT_REFRESH_EXPIRATION_MS}
   minio:
     endpoint: ${APP_MINIO_ENDPOINT}
