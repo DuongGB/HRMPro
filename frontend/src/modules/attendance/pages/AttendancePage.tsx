@@ -8,8 +8,6 @@ import { useDebounce } from "../../../hooks/useDebounce";
 import { 
   MapPin, 
   Monitor, 
-  Play, 
-  Square, 
   Calendar as CalendarIcon, 
   Clock, 
   CheckCircle2, 
@@ -19,7 +17,6 @@ import {
   Upload,
   UserCheck,
   Search,
-  Filter,
   Loader2,
   ChevronLeft,
   ChevronRight,
@@ -29,7 +26,6 @@ import {
   ThumbsDown,
   Info,
   CalendarDays,
-  LayoutGrid,
   Fingerprint,
   RefreshCw
 } from "lucide-react";
@@ -288,18 +284,14 @@ const AttendancePage: React.FC = () => {
   const [selectedDayDate, setSelectedDayDate] = useState<Date | null>(null);
   
   // Approval detail dialog
-  const [approveDetailLog, setApproveDetailLog] = useState<AttendanceLogResponse | null>(null);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ id: number; approve: boolean } | null>(null);
-  const [rejectReason, setRejectReason] = useState("");
   
   // View detail dialog
   const [viewDetailLog, setViewDetailLog] = useState<AttendanceLogResponse | null>(null);
 
   // Xác định quyền hiển thị tab và duyệt
-  const isEmployeeOnly = roles.includes("EMPLOYEE") && roles.length === 1;
   const isManager = roles.includes("MANAGER");
-  const isHR = roles.some(r => ["SUPER_ADMIN", "HR_ADMIN", "HR_STAFF"].includes(r));
   const isSuperOrHRAdmin = roles.some(r => ["SUPER_ADMIN", "HR_ADMIN"].includes(r));
   const canApprove = roles.some(r => ["SUPER_ADMIN", "HR_ADMIN", "MANAGER"].includes(r));
   const canViewAllAttendance = isSuperOrHRAdmin || isManager;
@@ -472,8 +464,6 @@ const AttendancePage: React.FC = () => {
       toast.success(variables.approve ? "Đã duyệt điều chỉnh công!" : "Đã từ chối điều chỉnh!");
       setIsConfirmDialogOpen(false);
       setConfirmAction(null);
-      setApproveDetailLog(null);
-      setRejectReason("");
     },
     onError: (error: any) => {
       toast.error(error.message || "Thao tác thất bại!");
