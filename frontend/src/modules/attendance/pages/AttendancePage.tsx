@@ -30,7 +30,8 @@ import {
   Info,
   CalendarDays,
   LayoutGrid,
-  Fingerprint
+  Fingerprint,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -331,7 +332,7 @@ const AttendancePage: React.FC = () => {
   // ─── Queries ──────────────────────────────────────────────────────────────────
   
   // Query: Lấy bảng công cá nhân (Employee)
-  const { data: myLogs, isLoading: isMyLogsLoading } = useQuery({
+  const { data: myLogs, isLoading: isMyLogsLoading, refetch: refetchMyLogs, isFetching: isMyLogsRefetching } = useQuery({
     queryKey: ["my-attendance"],
     queryFn: () => attendanceApi.getAttendanceLogs({
       employeeId: user?.employeeId,
@@ -341,7 +342,7 @@ const AttendancePage: React.FC = () => {
   });
 
   // Query: Lấy logs theo tháng cho Calendar view (Manager/HR)
-  const { data: calendarLogs, isLoading: isCalendarLogsLoading } = useQuery({
+  const { data: calendarLogs, isLoading: isCalendarLogsLoading, refetch: refetchCalendarLogs, isFetching: isCalendarLogsRefetching } = useQuery({
     queryKey: ["calendar-attendance", calYear, calMonth, filterDeptId],
     queryFn: () => attendanceApi.getAttendanceLogs({
       startDate: calStartDate,
@@ -353,7 +354,7 @@ const AttendancePage: React.FC = () => {
   });
 
   // Query: Lấy danh sách đơn sửa công chờ duyệt (Manager/HR)
-  const { data: pendingLogs, isLoading: isPendingLoading } = useQuery({
+  const { data: pendingLogs, isLoading: isPendingLoading, refetch: refetchPendingLogs, isFetching: isPendingLogsRefetching } = useQuery({
     queryKey: ["pending-adjustments"],
     queryFn: () => attendanceApi.getAttendanceLogs({
       status: "PENDING_ADJUST",
@@ -695,9 +696,21 @@ const AttendancePage: React.FC = () => {
 
           {/* Bảng lịch sử chấm công cá nhân */}
           <Card className="lg:col-span-2 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg">Lịch sử chấm công cá nhân</CardTitle>
-              <CardDescription>Bảng thống kê chấm công chi tiết theo từng ngày công.</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <div>
+                <CardTitle className="text-lg">Lịch sử chấm công cá nhân</CardTitle>
+                <CardDescription>Bảng thống kê chấm công chi tiết theo từng ngày công.</CardDescription>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => refetchMyLogs()} 
+                className="h-8 text-xs flex items-center gap-1.5"
+                disabled={isMyLogsRefetching}
+              >
+                <RefreshCw size={12} className={isMyLogsRefetching ? "animate-spin" : ""} />
+                Làm mới
+              </Button>
             </CardHeader>
             <CardContent>
               {isMyLogsLoading ? (
@@ -895,6 +908,17 @@ const AttendancePage: React.FC = () => {
                       ))}
                     </SelectContent>
                   </Select>
+
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => refetchCalendarLogs()} 
+                    className="h-8 text-xs flex items-center gap-1.5"
+                    disabled={isCalendarLogsRefetching}
+                  >
+                    <RefreshCw size={12} className={isCalendarLogsRefetching ? "animate-spin" : ""} />
+                    Làm mới
+                  </Button>
                 </div>
               </CardHeader>
 
@@ -965,11 +989,23 @@ const AttendancePage: React.FC = () => {
                     </CardTitle>
                     <CardDescription>Xét duyệt các đơn xin điều chỉnh giờ check-in/check-out của nhân sự.</CardDescription>
                   </div>
-                  {pendingCount > 0 && (
-                    <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 text-sm px-3 py-1">
-                      {pendingCount} đơn chờ duyệt
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {pendingCount > 0 && (
+                      <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 text-sm px-3 py-1">
+                        {pendingCount} đơn chờ duyệt
+                      </Badge>
+                    )}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => refetchPendingLogs()} 
+                      className="h-8 text-xs flex items-center gap-1.5"
+                      disabled={isPendingLogsRefetching}
+                    >
+                      <RefreshCw size={12} className={isPendingLogsRefetching ? "animate-spin" : ""} />
+                      Làm mới
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
