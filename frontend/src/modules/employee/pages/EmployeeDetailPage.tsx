@@ -96,6 +96,7 @@ const EmployeeDetailPage: React.FC = () => {
   const isSelf = user?.employeeId === empId;
   const canManage = hasAnyRole(["SUPER_ADMIN", "HR_ADMIN"]);
   const canEditInfo = canManage || (hasAnyRole(["HR_STAFF"]) && !isSelf);
+  const canViewContracts = canManage || hasAnyRole(["HR_STAFF"]) || isSelf;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -174,6 +175,7 @@ const EmployeeDetailPage: React.FC = () => {
   const { data: contracts = [], isLoading: isContractsLoading } = useQuery({
     queryKey: ["contracts", empId],
     queryFn: () => employeeApi.getContracts(empId),
+    enabled: canViewContracts,
   });
 
   // ── Mutations ─────────────────────────────────────────────────────────────
@@ -406,9 +408,15 @@ const EmployeeDetailPage: React.FC = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 md:w-[400px] mb-4 bg-muted/60">
+        <TabsList 
+          className="grid w-full mb-4 bg-muted/60"
+          style={{ 
+            gridTemplateColumns: canViewContracts ? "repeat(3, minmax(0, 1fr))" : "repeat(2, minmax(0, 1fr))",
+            width: canViewContracts ? "400px" : "280px"
+          }}
+        >
           <TabsTrigger value="profile">Hồ sơ</TabsTrigger>
-          <TabsTrigger value="contracts">Hợp đồng</TabsTrigger>
+          {canViewContracts && <TabsTrigger value="contracts">Hợp đồng</TabsTrigger>}
           <TabsTrigger value="onboarding">Checklist</TabsTrigger>
         </TabsList>
 
@@ -719,63 +727,65 @@ const EmployeeDetailPage: React.FC = () => {
         </TabsContent>
 
         {/* ─── Tab 2: Hợp đồng ─────────────────────────────────────────────── */}
-        <TabsContent value="contracts">
-          <Card className="shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <div>
-                <CardTitle>Danh sách Hợp đồng lao động</CardTitle>
-                <CardDescription>Danh sách lịch sử ký kết hợp đồng.</CardDescription>
-              </div>
-              {canManage && (
-                <Button onClick={() => setIsContractOpen(true)} className="flex items-center gap-2">
-                  <Plus size={16} /> Ký kết hợp đồng
-                </Button>
-              )}
-            </CardHeader>
-            <CardContent>
-              {isContractsLoading ? (
-                <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div>
-              ) : contracts.length === 0 ? (
-                <div className="text-center py-10 text-muted-foreground italic text-sm">
-                  Chưa ký hợp đồng lao động nào.
+        {canViewContracts && (
+          <TabsContent value="contracts">
+            <Card className="shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <div>
+                  <CardTitle>Danh sách Hợp đồng lao động</CardTitle>
+                  <CardDescription>Danh sách lịch sử ký kết hợp đồng.</CardDescription>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {contracts.map(contract => (
-                    <div key={contract.id} className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 border rounded-xl hover:shadow-sm transition-shadow">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-foreground">{contract.contractNumber}</span>
-                          <Badge className="bg-muted text-muted-foreground border">{contract.contractType}</Badge>
-                          {contract.status === "ACTIVE" ? (
-                            <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">Hoạt động</Badge>
-                          ) : (
-                            <Badge variant="destructive">Đã hết hạn/Hủy</Badge>
+                {canManage && (
+                  <Button onClick={() => setIsContractOpen(true)} className="flex items-center gap-2">
+                    <Plus size={16} /> Ký kết hợp đồng
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent>
+                {isContractsLoading ? (
+                  <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div>
+                ) : contracts.length === 0 ? (
+                  <div className="text-center py-10 text-muted-foreground italic text-sm">
+                    Chưa ký hợp đồng lao động nào.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {contracts.map(contract => (
+                      <div key={contract.id} className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 border rounded-xl hover:shadow-sm transition-shadow">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-foreground">{contract.contractNumber}</span>
+                            <Badge className="bg-muted text-muted-foreground border">{contract.contractType}</Badge>
+                            {contract.status === "ACTIVE" ? (
+                              <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">Hoạt động</Badge>
+                            ) : (
+                              <Badge variant="destructive">Đã hết hạn/Hủy</Badge>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Thời hạn: {fmtDate(contract.startDate)} — {contract.endDate ? fmtDate(contract.endDate) : "Vô thời hạn"}
+                          </div>
+                          <div className="text-sm font-semibold text-primary mt-1">
+                            Lương cơ bản: {contract.baseSalary.toLocaleString("vi-VN")} VNĐ
+                          </div>
+                        </div>
+                        <div className="mt-4 md:mt-0 flex gap-2">
+                          {contract.documentUrl && (
+                            <Button variant="outline" size="sm" asChild>
+                              <a href={contract.documentUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5">
+                                <Download size={14} /> Tải bản scan PDF
+                              </a>
+                            </Button>
                           )}
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          Thời hạn: {fmtDate(contract.startDate)} — {contract.endDate ? fmtDate(contract.endDate) : "Vô thời hạn"}
-                        </div>
-                        <div className="text-sm font-semibold text-primary mt-1">
-                          Lương cơ bản: {contract.baseSalary.toLocaleString("vi-VN")} VNĐ
-                        </div>
                       </div>
-                      <div className="mt-4 md:mt-0 flex gap-2">
-                        {contract.documentUrl && (
-                          <Button variant="outline" size="sm" asChild>
-                            <a href={contract.documentUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5">
-                              <Download size={14} /> Tải bản scan PDF
-                            </a>
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         {/* ─── Tab 3: Checklist ─────────────────────────────────────────────── */}
         <TabsContent value="onboarding">
