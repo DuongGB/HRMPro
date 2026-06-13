@@ -255,6 +255,13 @@ public class AttendanceService {
             approvedByName = entity.getApprovedBy().getFullName();
         }
 
+        Long departmentId = null;
+        String departmentName = null;
+        if (entity.getEmployee().getDepartment() != null) {
+            departmentId = entity.getEmployee().getDepartment().getId();
+            departmentName = entity.getEmployee().getDepartment().getName();
+        }
+
         return AttendanceLogResponse.builder()
                 .id(entity.getId())
                 .employeeId(entity.getEmployee().getId())
@@ -267,6 +274,8 @@ public class AttendanceService {
                 .checkInLocation(entity.getCheckInLocation())
                 .status(entity.getStatus())
                 .note(entity.getNote())
+                .departmentId(departmentId)
+                .departmentName(departmentName)
                 .approvedById(approvedById)
                 .approvedByName(approvedByName)
                 .build();

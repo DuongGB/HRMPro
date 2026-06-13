@@ -22,6 +22,8 @@ public class AttendanceLogResponse {
     private String checkInLocation;
     private String status;
     private String note;
+    private Long departmentId;
+    private String departmentName;
     private Long approvedById;
     private String approvedByName;
 }
