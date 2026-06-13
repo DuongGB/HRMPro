@@ -28,29 +28,22 @@ public class AttendanceController {
 
     private final AttendanceService attendanceService;
 
-    @PostMapping("/check-in")
+    /**
+     * Chấm công (giống máy chấm công thực tế: 1 nút duy nhất)
+     * - Lần đầu tiên trong ngày → ghi nhận check-in
+     * - Các lần tiếp theo → cập nhật check-out (lần cuối cùng là giờ ra)
+     */
+    @PostMapping("/check")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<AttendanceLogResponse>> checkIn(
+    public ResponseEntity<ApiResponse<AttendanceLogResponse>> check(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestBody CheckInRequest request
     ) {
         if (principal.getEmployeeId() == null) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Tài khoản này không liên kết với nhân viên"));
         }
-        AttendanceLogResponse response = attendanceService.checkIn(principal.getEmployeeId(), request);
-        return ResponseEntity.ok(ApiResponse.ok("Check-in thành công", response));
-    }
-
-    @PostMapping("/check-out")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<AttendanceLogResponse>> checkOut(
-            @AuthenticationPrincipal UserPrincipal principal
-    ) {
-        if (principal.getEmployeeId() == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Tài khoản này không liên kết với nhân viên"));
-        }
-        AttendanceLogResponse response = attendanceService.checkOut(principal.getEmployeeId());
-        return ResponseEntity.ok(ApiResponse.ok("Check-out thành công", response));
+        AttendanceLogResponse response = attendanceService.check(principal.getEmployeeId(), request);
+        return ResponseEntity.ok(ApiResponse.ok("Chấm công thành công", response));
     }
 
     @PostMapping("/adjust")

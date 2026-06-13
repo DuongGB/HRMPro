@@ -44,6 +44,10 @@ public class AttendanceLog {
     @Column(length = 20)
     private String status; // ON_TIME|LATE|EARLY_LEAVE|ABSENT|HOLIDAY|LEAVE|PENDING_ADJUST|ADJUSTED
 
+    @Column(name = "check_count")
+    @Builder.Default
+    private Integer checkCount = 0; // Số lần chấm công trong ngày
+
     private String note;
 
     @ManyToOne(fetch = FetchType.LAZY)

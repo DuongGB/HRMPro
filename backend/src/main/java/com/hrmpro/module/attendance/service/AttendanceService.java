@@ -43,61 +43,73 @@ public class AttendanceService {
     private static final LocalTime WORK_END_TIME = LocalTime.of(17, 30);
 
     /**
-     * Nhân viên Check-in
+     * Chấm công (Single-button check — giống máy chấm công thực tế)
+     *
+     * Cơ chế:
+     * - Lần đầu tiên trong ngày → tạo bản ghi mới, ghi nhận checkIn, tính trạng thái đúng giờ/trễ
+     * - Các lần tiếp theo → cập nhật checkOut (luôn ghi đè thời điểm mới nhất)
+     *   → Giờ ra chính thức = lần chấm cuối cùng trong ngày
      */
     @Transactional
-    public AttendanceLogResponse checkIn(Long employeeId, CheckInRequest request) {
+    public AttendanceLogResponse check(Long employeeId, CheckInRequest request) {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy nhân viên"));
 
         LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
         Optional<AttendanceLog> existingLog = attendanceLogRepository.findByEmployeeIdAndWorkDate(employeeId, today);
 
-        if (existingLog.isPresent()) {
-            throw new AppException("Bạn đã check-in hôm nay rồi", HttpStatus.BAD_REQUEST);
+        AttendanceLog logEntity;
+
+        if (existingLog.isEmpty()) {
+            // ─── LẦN ĐẦU TRONG NGÀY → CHECK-IN ─────────────────────────────
+            String status = now.toLocalTime().isAfter(WORK_START_TIME) ? "LATE" : "ON_TIME";
+
+            logEntity = AttendanceLog.builder()
+                    .employee(employee)
+                    .workDate(today)
+                    .checkIn(now)
+                    .checkInIp(request.getIpAddress())
+                    .checkInLocation(request.getLocation())
+                    .status(status)
+                    .checkCount(1)
+                    .note(request.getNote())
+                    .build();
+        } else {
+            // ─── CÁC LẦN SAU → CẬP NHẬT CHECK-OUT ──────────────────────────
+            logEntity = existingLog.get();
+            logEntity.setCheckOut(now);
+            logEntity.setCheckCount(logEntity.getCheckCount() + 1);
+
+            // Tính toán lại trạng thái dựa trên cả checkIn và checkOut
+            recalculateStatus(logEntity);
         }
 
-        LocalDateTime now = LocalDateTime.now();
-        // Kiểm tra đi muộn (Sau 8:30 sáng)
-        String status = now.toLocalTime().isAfter(WORK_START_TIME) ? "LATE" : "ON_TIME";
-
-        AttendanceLog log = AttendanceLog.builder()
-                .employee(employee)
-                .workDate(today)
-                .checkIn(now)
-                .checkInIp(request.getIpAddress())
-                .checkInLocation(request.getLocation())
-                .status(status)
-                .note(request.getNote())
-                .build();
-
-        AttendanceLog saved = attendanceLogRepository.save(log);
+        AttendanceLog saved = attendanceLogRepository.save(logEntity);
         return convertToResponse(saved);
     }
 
     /**
-     * Nhân viên Check-out
+     * Tính toán lại trạng thái công dựa trên giờ check-in và check-out.
+     * Ưu tiên: LATE > EARLY_LEAVE > ON_TIME
+     * (Nếu vừa đi trễ vừa về sớm → hiển thị LATE vì đó là vi phạm đầu tiên)
      */
-    @Transactional
-    public AttendanceLogResponse checkOut(Long employeeId) {
-        LocalDate today = LocalDate.now();
-        AttendanceLog log = attendanceLogRepository.findByEmployeeIdAndWorkDate(employeeId, today)
-                .orElseThrow(() -> new ResourceNotFoundException("Bạn chưa check-in hôm nay"));
+    private void recalculateStatus(AttendanceLog logEntity) {
+        // Không tính lại cho các bản ghi đang chờ duyệt sửa công
+        if ("PENDING_ADJUST".equals(logEntity.getStatus())) return;
 
-        if (log.getCheckOut() != null) {
-            throw new AppException("Bạn đã check-out hôm nay rồi", HttpStatus.BAD_REQUEST);
+        boolean isLate = logEntity.getCheckIn() != null
+                && logEntity.getCheckIn().toLocalTime().isAfter(WORK_START_TIME);
+        boolean isEarlyLeave = logEntity.getCheckOut() != null
+                && logEntity.getCheckOut().toLocalTime().isBefore(WORK_END_TIME);
+
+        if (isLate) {
+            logEntity.setStatus("LATE");
+        } else if (isEarlyLeave) {
+            logEntity.setStatus("EARLY_LEAVE");
+        } else {
+            logEntity.setStatus("ON_TIME");
         }
-
-        LocalDateTime now = LocalDateTime.now();
-        log.setCheckOut(now);
-
-        // Cập nhật trạng thái về sớm nếu check-out trước 17:30
-        if (now.toLocalTime().isBefore(WORK_END_TIME)) {
-            log.setStatus("EARLY_LEAVE");
-        }
-
-        AttendanceLog saved = attendanceLogRepository.save(log);
-        return convertToResponse(saved);
     }
 
     /**
@@ -273,6 +285,7 @@ public class AttendanceService {
                 .checkInIp(entity.getCheckInIp())
                 .checkInLocation(entity.getCheckInLocation())
                 .status(entity.getStatus())
+                .checkCount(entity.getCheckCount())
                 .note(entity.getNote())
                 .departmentId(departmentId)
                 .departmentName(departmentName)
