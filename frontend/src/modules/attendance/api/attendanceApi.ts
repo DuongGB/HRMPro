@@ -13,6 +13,8 @@ export interface AttendanceLogResponse {
   checkInLocation: string | null;
   status: string; // ON_TIME|LATE|EARLY_LEAVE|ABSENT|PENDING_ADJUST|ADJUSTED
   note: string | null;
+  departmentId: number | null;
+  departmentName: string | null;
   approvedById: number | null;
   approvedByName: string | null;
 }
