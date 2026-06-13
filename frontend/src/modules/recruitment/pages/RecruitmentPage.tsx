@@ -77,7 +77,8 @@ const RecruitmentPage: React.FC = () => {
   const { user } = usePermission();
   const roles = user?.roles || [];
 
-  const isRecruiterOrHR = roles.some(r => ["SUPER_ADMIN", "HR_ADMIN", "HR_STAFF", "RECRUITER"].includes(r));
+  const isRecruiter = roles.includes("RECRUITER");
+  const isManager = roles.includes("MANAGER");
 
   // Kanban Filter & Data
   const [selectedJobIdFilter, setSelectedJobIdFilter] = useState<string>("all");
@@ -115,6 +116,12 @@ const RecruitmentPage: React.FC = () => {
   const [selectedInterviewId, setSelectedInterviewId] = useState<number | null>(null);
   const [interviewResult, setInterviewResult] = useState("PASSED");
   const [interviewFeedback, setInterviewFeedback] = useState("");
+
+  // Dialog State: Phê duyệt lịch phỏng vấn
+  const [isApproveScheduleOpen, setIsApproveScheduleOpen] = useState(false);
+  const [targetScheduleId, setTargetScheduleId] = useState<number | null>(null);
+  const [approvalStatusAction, setApprovalStatusAction] = useState("APPROVED");
+  const [approvalFeedbackAction, setApprovalFeedbackAction] = useState("");
 
   // Dialog State: Xem chi tiết ứng viên
   const [isAppDetailOpen, setIsAppDetailOpen] = useState(false);
@@ -222,6 +229,20 @@ const RecruitmentPage: React.FC = () => {
     },
     onError: (error: any) => {
       toast.error(error.message || "Lỗi cập nhật kết quả phỏng vấn.");
+    },
+  });
+
+  const approveScheduleMutation = useMutation({
+    mutationFn: ({ id, status, feedback }: { id: number; status: string; feedback?: string }) =>
+      recruitmentApi.approveInterviewSchedule(id, status, feedback),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["interviews"] });
+      toast.success("Cập nhật phê duyệt lịch phỏng vấn thành công!");
+      setIsApproveScheduleOpen(false);
+      setApprovalFeedbackAction("");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Lỗi phê duyệt lịch phỏng vấn.");
     },
   });
 
@@ -355,7 +376,7 @@ const RecruitmentPage: React.FC = () => {
           </p>
         </div>
 
-        {isRecruiterOrHR && (
+        {isRecruiter && (
           <Button onClick={() => setIsCreateJobOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-medium">
             <Plus className="h-5 w-5 mr-1" /> Đăng tin tuyển dụng
           </Button>
@@ -431,7 +452,7 @@ const RecruitmentPage: React.FC = () => {
                                   <span className="text-muted-foreground">Không có CV</span>
                                 )}
 
-                                {isRecruiterOrHR && (
+                                {isRecruiter && (
                                   <Select onValueChange={(val) => openChangeStageModal(app.id, app.stage, val)}>
                                     <SelectTrigger className="h-6 w-fit bg-muted border-border text-[10px] py-0 px-2 text-foreground">
                                       <SelectValue placeholder="Đổi Cột" />
@@ -445,7 +466,7 @@ const RecruitmentPage: React.FC = () => {
                                 )}
                               </div>
 
-                              {stage.key === "SCREENING" && isRecruiterOrHR && (
+                              {stage.key === "SCREENING" && isRecruiter && (
                                 <Button size="sm" onClick={() => openScheduleInterviewModal(app.id)} className="w-full mt-2 h-7 bg-purple-600 hover:bg-purple-700 text-white text-[10px]">
                                   <Calendar className="h-3 w-3 mr-1" /> Lên lịch PV
                                 </Button>
@@ -492,7 +513,7 @@ const RecruitmentPage: React.FC = () => {
                         <TableHead className="text-muted-foreground font-medium text-center">Số lượng</TableHead>
                         <TableHead className="text-muted-foreground font-medium">Hạn nộp</TableHead>
                         <TableHead className="text-muted-foreground font-medium">Trạng thái</TableHead>
-                        {isRecruiterOrHR && <TableHead className="text-muted-foreground font-medium text-right">Thao tác</TableHead>}
+                        {isRecruiter && <TableHead className="text-muted-foreground font-medium text-right">Thao tác</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -509,7 +530,7 @@ const RecruitmentPage: React.FC = () => {
                               {job.status}
                             </Badge>
                           </TableCell>
-                          {isRecruiterOrHR && (
+                          {isRecruiter && (
                             <TableCell className="text-right">
                               <Select onValueChange={(val) => updateJobStatusMutation.mutate({ id: job.id, data: { status: val } })}>
                                 <SelectTrigger className="h-8 w-[110px] ml-auto bg-muted border-border text-xs">
@@ -563,6 +584,7 @@ const RecruitmentPage: React.FC = () => {
                         <TableHead className="text-muted-foreground font-medium">Hình thức</TableHead>
                         <TableHead className="text-muted-foreground font-medium">Thời gian</TableHead>
                         <TableHead className="text-muted-foreground font-medium">Người phỏng vấn</TableHead>
+                        <TableHead className="text-muted-foreground font-medium">Trạng thái duyệt</TableHead>
                         <TableHead className="text-muted-foreground font-medium">Đánh giá/Kết quả</TableHead>
                         <TableHead className="text-muted-foreground font-medium text-right">Hành động</TableHead>
                       </TableRow>
@@ -579,6 +601,21 @@ const RecruitmentPage: React.FC = () => {
                           </TableCell>
                           <TableCell className="text-muted-foreground text-xs">{int.interviewerNames || "Chưa phân công"}</TableCell>
                           <TableCell>
+                            <Badge variant="outline" className={`font-semibold ${
+                              int.approvalStatus === "APPROVED" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                              int.approvalStatus === "REJECTED" ? "bg-rose-500/10 text-rose-500 border-rose-500/20" :
+                              "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                            }`}>
+                              {int.approvalStatus === "APPROVED" ? "Đã duyệt" :
+                               int.approvalStatus === "REJECTED" ? "Từ chối" : "Chờ duyệt"}
+                            </Badge>
+                            {int.approvalStatus === "REJECTED" && int.approvalFeedback && (
+                              <div className="text-[10px] text-rose-500 italic mt-0.5 max-w-[120px] truncate" title={int.approvalFeedback}>
+                                Lý do: {int.approvalFeedback}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
                             {int.result ? (
                               <Badge className={`${INTERVIEW_RESULT_COLORS[int.result]} border font-semibold`}>
                                 {INTERVIEW_RESULT_LABELS[int.result]}
@@ -587,10 +624,26 @@ const RecruitmentPage: React.FC = () => {
                               <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20">Chờ phỏng vấn</Badge>
                             )}
                           </TableCell>
-                          <TableCell className="text-right">
-                            <Button size="sm" onClick={() => openInterviewResultModal(int)} className="bg-muted hover:bg-muted/80 text-foreground text-xs h-8">
-                              <ClipboardList className="h-4 w-4 mr-1" /> Nhận xét
-                            </Button>
+                          <TableCell className="text-right space-x-1">
+                            {isRecruiter && int.approvalStatus === "APPROVED" && (
+                              <Button size="sm" onClick={() => openInterviewResultModal(int)} className="bg-muted hover:bg-muted/80 text-foreground text-xs h-8">
+                                <ClipboardList className="h-4 w-4 mr-1" /> Nhận xét
+                              </Button>
+                            )}
+                            {isManager && int.approvalStatus === "PENDING" && (
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setTargetScheduleId(int.id);
+                                  setApprovalStatusAction("APPROVED");
+                                  setApprovalFeedbackAction("");
+                                  setIsApproveScheduleOpen(true);
+                                }}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8"
+                              >
+                                Duyệt lịch
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -982,6 +1035,64 @@ const RecruitmentPage: React.FC = () => {
           <DialogFooter>
             <Button onClick={() => setIsAppDetailOpen(false)} variant="outline">
               Đóng
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG 6: PHÊ DUYỆT LỊCH PHỎNG VẤN (MANAGER) */}
+      <Dialog open={isApproveScheduleOpen} onOpenChange={setIsApproveScheduleOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Phê Duyệt Lịch Phỏng Vấn</DialogTitle>
+            <DialogDescription>
+              Vui lòng đồng ý hoặc từ chối lịch phỏng vấn do Recruiter đề xuất. Hệ thống sẽ chính thức gửi thư mời tới ứng viên nếu lịch được phê duyệt.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Quyết định phê duyệt</Label>
+              <Select value={approvalStatusAction} onValueChange={setApprovalStatusAction}>
+                <SelectTrigger className="bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="APPROVED">Đồng ý lịch phỏng vấn (Duyệt)</SelectItem>
+                  <SelectItem value="REJECTED">Từ chối lịch phỏng vấn (Yêu cầu lên lịch lại)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="approval-feedback">Ý kiến phản hồi / Lý do từ chối (Nếu có)</Label>
+              <Textarea
+                id="approval-feedback"
+                rows={3}
+                value={approvalFeedbackAction}
+                onChange={(e) => setApprovalFeedbackAction(e.target.value)}
+                placeholder="Nhập lý do từ chối hoặc ý kiến đóng góp cho Recruiter..."
+              />
+            </div>
+          </div>
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="outline" onClick={() => setIsApproveScheduleOpen(false)}>
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              disabled={approveScheduleMutation.isPending}
+              onClick={() => {
+                if (targetScheduleId !== null) {
+                  approveScheduleMutation.mutate({
+                    id: targetScheduleId,
+                    status: approvalStatusAction,
+                    feedback: approvalFeedbackAction,
+                  });
+                }
+              }}
+              className={approvalStatusAction === "APPROVED" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-rose-600 hover:bg-rose-700 text-white"}
+            >
+              {approveScheduleMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Xác nhận
             </Button>
           </DialogFooter>
         </DialogContent>
