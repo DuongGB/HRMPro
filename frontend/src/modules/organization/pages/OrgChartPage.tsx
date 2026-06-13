@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Loader2,
+  Award,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,12 +63,13 @@ interface OrgNodeProps {
   onDelete: (id: number) => void;
   onActive: (id: number) => void;
   onViewEmployees: (deptId: number, deptName: string) => void;
+  onManagePositions: (deptId: number, deptName: string) => void;
   canManage: boolean;
   canViewEmployees: boolean;
   searchTerm: string;
 }
 
-const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, onActive, onViewEmployees, canManage, canViewEmployees, searchTerm }) => {
+const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, onActive, onViewEmployees, onManagePositions, canManage, canViewEmployees, searchTerm }) => {
   const [collapsed, setCollapsed] = useState(false);
   const hasChildren = node.children && node.children.length > 0;
 
@@ -189,6 +191,13 @@ const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, o
             >
               <Edit size={13} className="stroke-[2.5]" />
             </button>
+            <button 
+              onClick={() => onManagePositions(node.id, node.name)}
+              className="p-1.5 rounded-md text-sky-500 hover:bg-sky-500/10 transition-colors"
+              title="Quản lý chức vụ"
+            >
+              <Award size={13} className="stroke-[2.5]" />
+            </button>
             {node.isActive ? (
               <button 
                 onClick={() => onDelete(node.id)}
@@ -241,6 +250,7 @@ const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, o
                   onDelete={onDelete} 
                   onActive={onActive}
                   onViewEmployees={onViewEmployees}
+                  onManagePositions={onManagePositions}
                   canManage={canManage}
                   canViewEmployees={canViewEmployees}
                   searchTerm={searchTerm}
@@ -357,6 +367,17 @@ const OrgChartPage: React.FC = () => {
   const [isConfirmActiveOpen, setIsConfirmActiveOpen] = useState(false);
   const [deptIdToActive, setDeptIdToActive] = useState<number | null>(null);
 
+  // States quản lý chức vụ phòng ban
+  const [isPositionsDialogOpen, setIsPositionsDialogOpen] = useState(false);
+  const [positionDeptId, setPositionDeptId] = useState<number | null>(null);
+  const [positionDeptName, setPositionDeptName] = useState("");
+  
+  // State form tạo chức vụ mới
+  const [posCode, setPosCode] = useState("");
+  const [posName, setPosName] = useState("");
+  const [posLevel, setPosLevel] = useState("JUNIOR");
+  const [posDesc, setPosDesc] = useState("");
+
   // Query: Lấy cây phòng ban (cache 2 phút, invalidate khi mutation thành công)
   const { data: tree = [], isLoading } = useQuery({
     queryKey: ["department-tree"],
@@ -369,6 +390,41 @@ const OrgChartPage: React.FC = () => {
     queryKey: ["employees-select-list", debouncedEmployeeSearch, employeePage],
     queryFn: () => employeeApi.getEmployees(debouncedEmployeeSearch, null, "ACTIVE", employeePage, 6),
     enabled: isEmployeeDialogOpen,
+  });
+
+  // Query: Lấy danh sách chức vụ theo phòng ban
+  const { data: deptPositions = [], isLoading: isLoadingDeptPositions, refetch: refetchDeptPositions } = useQuery({
+    queryKey: ["positions-by-dept", positionDeptId],
+    queryFn: () => organizationApi.getPositionsByDept(positionDeptId!),
+    enabled: !!positionDeptId && isPositionsDialogOpen,
+  });
+
+  // Mutation: Tạo mới chức vụ
+  const createPositionMutation = useMutation({
+    mutationFn: organizationApi.createPosition,
+    onSuccess: () => {
+      refetchDeptPositions();
+      toast.success("Tạo chức vụ mới thành công!");
+      setPosCode("");
+      setPosName("");
+      setPosLevel("JUNIOR");
+      setPosDesc("");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Tạo chức vụ thất bại!");
+    }
+  });
+
+  // Mutation: Ngừng hoạt động chức vụ
+  const deletePositionMutation = useMutation({
+    mutationFn: organizationApi.deletePosition,
+    onSuccess: () => {
+      refetchDeptPositions();
+      toast.success("Đã ngừng hoạt động chức vụ!");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Ngừng hoạt động chức vụ thất bại!");
+    }
   });
 
   // Query: Lấy danh sách nhân viên của phòng ban được click chọn
@@ -485,6 +541,17 @@ const OrgChartPage: React.FC = () => {
   const handleActive = (id: number) => {
     setDeptIdToActive(id);
     setIsConfirmActiveOpen(true);
+  };
+
+  const handleManagePositions = (deptId: number, deptName: string) => {
+    if (hasMovedRef.current) return;
+    setPositionDeptId(deptId);
+    setPositionDeptName(deptName);
+    setPosCode("");
+    setPosName("");
+    setPosLevel("JUNIOR");
+    setPosDesc("");
+    setIsPositionsDialogOpen(true);
   };
 
   const handleSelectEmployee = (emp: EmployeeResponse) => {
@@ -709,6 +776,7 @@ const OrgChartPage: React.FC = () => {
                   onDelete={handleDelete} 
                   onActive={handleActive}
                   onViewEmployees={handleViewEmployees}
+                  onManagePositions={handleManagePositions}
                   canManage={canManage}
                   canViewEmployees={canViewEmployees}
                   searchTerm={debouncedSearch}
@@ -822,6 +890,15 @@ const OrgChartPage: React.FC = () => {
                         >
                           <Edit size={13} />
                           Sửa
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 px-2.5 text-xs flex items-center gap-1 text-sky-500 hover:text-sky-600 hover:bg-sky-500/5"
+                          onClick={() => handleManagePositions(dept.id, dept.name)}
+                        >
+                          <Award size={13} />
+                          Chức vụ
                         </Button>
                         {dept.isActive ? (
                           <Button 
@@ -1403,6 +1480,188 @@ const OrgChartPage: React.FC = () => {
               }}
             >
               Kích hoạt lại
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog quản lý chức vụ phòng ban */}
+      <Dialog open={isPositionsDialogOpen} onOpenChange={setIsPositionsDialogOpen}>
+        <DialogContent className="sm:max-w-[650px] max-h-[85vh] flex flex-col">
+          <DialogHeader className="pb-3 border-b shrink-0">
+            <DialogTitle className="text-lg font-bold flex items-center gap-2 text-sky-500">
+              <Award className="h-5 w-5" />
+              Chức vụ phòng ban: {positionDeptName}
+            </DialogTitle>
+            <DialogDescription>
+              Xem danh sách chức vụ hiện tại và tạo thêm chức vụ mới cho phòng ban này.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto py-4 space-y-6">
+            {/* Form tạo mới chức vụ (Chỉ admin được làm) */}
+            {canManage && (
+              <Card className="border bg-muted/20">
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tạo chức vụ mới</CardTitle>
+                </CardHeader>
+                <CardContent className="py-0 px-4 pb-4 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="pos-code" className="text-xs">Mã chức vụ</Label>
+                      <Input
+                        id="pos-code"
+                        placeholder="Ví dụ: POS-DEV..."
+                        value={posCode}
+                        onChange={(e) => setPosCode(e.target.value)}
+                        className="h-8 text-xs bg-background text-foreground"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="pos-name" className="text-xs">Tên chức vụ</Label>
+                      <Input
+                        id="pos-name"
+                        placeholder="Ví dụ: Lập trình viên..."
+                        value={posName}
+                        onChange={(e) => setPosName(e.target.value)}
+                        className="h-8 text-xs bg-background text-foreground"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="pos-level" className="text-xs">Cấp bậc (Level)</Label>
+                      <Select value={posLevel} onValueChange={setPosLevel}>
+                        <SelectTrigger id="pos-level" className="h-8 text-xs bg-background text-foreground">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="text-xs">
+                          <SelectItem value="INTERN">Intern</SelectItem>
+                          <SelectItem value="JUNIOR">Junior</SelectItem>
+                          <SelectItem value="MIDDLE">Middle</SelectItem>
+                          <SelectItem value="SENIOR">Senior</SelectItem>
+                          <SelectItem value="LEAD">Lead</SelectItem>
+                          <SelectItem value="MANAGER">Manager</SelectItem>
+                          <SelectItem value="DIRECTOR">Director</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="pos-desc" className="text-xs">Mô tả ngắn</Label>
+                      <Input
+                        id="pos-desc"
+                        placeholder="Mô tả công việc..."
+                        value={posDesc}
+                        onChange={(e) => setPosDesc(e.target.value)}
+                        className="h-8 text-xs bg-background text-foreground"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end pt-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        if (!posCode || !posName) {
+                          toast.error("Vui lòng điền mã và tên chức vụ");
+                          return;
+                        }
+                        if (positionDeptId !== null) {
+                          createPositionMutation.mutate({
+                            code: posCode,
+                            name: posName,
+                            departmentId: positionDeptId,
+                            level: posLevel,
+                            description: posDesc
+                          });
+                        }
+                      }}
+                      disabled={createPositionMutation.isPending}
+                      className="bg-sky-600 hover:bg-sky-700 text-white text-xs h-8 px-4"
+                    >
+                      {createPositionMutation.isPending && <Loader2 size={12} className="animate-spin mr-1" />}
+                      Thêm chức vụ
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Danh sách chức vụ */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">Danh sách chức vụ hoạt động ({deptPositions.length})</h4>
+              {isLoadingDeptPositions ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-2 border rounded-lg">
+                  <Loader2 className="animate-spin text-primary h-6 w-6" />
+                  <span className="text-xs text-muted-foreground">Đang tải danh sách chức vụ...</span>
+                </div>
+              ) : deptPositions.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground text-xs italic border border-dashed rounded-lg bg-muted/5">
+                  Chưa có chức vụ nào được cấu hình cho phòng ban này.
+                </div>
+              ) : (
+                <div className="border rounded-lg overflow-hidden bg-background">
+                  <Table>
+                    <TableHeader className="bg-muted/40">
+                      <TableRow className="h-9">
+                        <TableHead className="text-xs py-1.5">Mã chức vụ</TableHead>
+                        <TableHead className="text-xs py-1.5">Tên chức vụ</TableHead>
+                        <TableHead className="text-xs py-1.5">Level</TableHead>
+                        <TableHead className="text-xs py-1.5">Trạng thái</TableHead>
+                        {canManage && <TableHead className="text-xs py-1.5 text-right">Hành động</TableHead>}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {deptPositions.map(pos => (
+                        <TableRow key={pos.id} className="hover:bg-muted/20 h-9">
+                          <TableCell className="font-mono text-xs font-bold py-1.5">{pos.code}</TableCell>
+                          <TableCell className="text-xs font-medium py-1.5">{pos.name}</TableCell>
+                          <TableCell className="text-xs py-1.5">
+                            <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-semibold bg-sky-500/5 text-sky-500 border-sky-500/10">
+                              {pos.level}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs py-1.5">
+                            <Badge 
+                              variant="outline" 
+                              className={`text-[9px] font-semibold px-1.5 py-0.2 border ${
+                                pos.isActive 
+                                  ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" 
+                                  : "bg-destructive/10 text-destructive border-destructive/20"
+                              }`}
+                            >
+                              {pos.isActive ? "Đang hoạt động" : "Ngừng HĐ"}
+                            </Badge>
+                          </TableCell>
+                          {canManage && (
+                            <TableCell className="text-right py-1.5">
+                              {pos.isActive ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => deletePositionMutation.mutate(pos.id)}
+                                  disabled={deletePositionMutation.isPending}
+                                  className="h-6 px-2 text-[10px] text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                >
+                                  Ngừng HĐ
+                                </Button>
+                              ) : (
+                                <span className="text-[10px] italic text-muted-foreground">Không hoạt động</span>
+                              )}
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="pt-3 border-t shrink-0">
+            <Button type="button" size="sm" onClick={() => setIsPositionsDialogOpen(false)}>
+              Đóng
             </Button>
           </DialogFooter>
         </DialogContent>
