@@ -24,4 +24,6 @@ public class InterviewDto {
     private String interviewerNames; // Tên hiển thị của người phỏng vấn
     private String result; // PASSED|FAILED|NO_SHOW|RESCHEDULED
     private String feedback;
+    private String approvalStatus;
+    private String approvalFeedback;
 }

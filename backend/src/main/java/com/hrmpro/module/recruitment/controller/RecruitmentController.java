@@ -52,7 +52,7 @@ public class RecruitmentController {
     }
 
     @PostMapping("/jobs")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HR_ADMIN', 'HR_STAFF', 'RECRUITER')")
+    @PreAuthorize("hasRole('RECRUITER')")
     public ResponseEntity<ApiResponse<JobPostingDto>> createJob(
             @Valid @RequestBody JobPostingDto dto,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -62,7 +62,7 @@ public class RecruitmentController {
     }
 
     @PutMapping("/jobs/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HR_ADMIN', 'HR_STAFF', 'RECRUITER')")
+    @PreAuthorize("hasRole('RECRUITER')")
     public ResponseEntity<ApiResponse<JobPostingDto>> updateJob(@PathVariable Long id, @Valid @RequestBody JobPostingDto dto) {
         JobPosting data = convertToEntity(dto);
         JobPosting updated = recruitmentService.updateJob(id, data);
@@ -101,7 +101,7 @@ public class RecruitmentController {
     }
 
     @PutMapping("/applications/{id}/stage")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HR_ADMIN', 'HR_STAFF', 'RECRUITER', 'MANAGER')")
+    @PreAuthorize("hasRole('RECRUITER')")
     public ResponseEntity<ApiResponse<ApplicationDto>> updateApplicationStage(
             @PathVariable Long id,
             @RequestParam String stage,
@@ -135,7 +135,7 @@ public class RecruitmentController {
     }
 
     @PostMapping("/interviews")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HR_ADMIN', 'HR_STAFF', 'RECRUITER', 'MANAGER')")
+    @PreAuthorize("hasRole('RECRUITER')")
     public ResponseEntity<ApiResponse<InterviewDto>> scheduleInterview(@RequestBody InterviewDto dto) {
         Interview interview = convertToEntity(dto);
         Interview created = recruitmentService.scheduleInterview(interview);
@@ -143,12 +143,22 @@ public class RecruitmentController {
     }
 
     @PutMapping("/interviews/{id}/result")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HR_ADMIN', 'HR_STAFF', 'RECRUITER', 'MANAGER')")
+    @PreAuthorize("hasRole('RECRUITER')")
     public ResponseEntity<ApiResponse<InterviewDto>> updateInterviewResult(
             @PathVariable Long id,
             @RequestParam String result,
             @RequestParam(required = false) String feedback) {
         Interview updated = recruitmentService.updateInterviewResult(id, result, feedback);
+        return ResponseEntity.ok(ApiResponse.ok(convertToDto(updated)));
+    }
+
+    @PutMapping("/interviews/{id}/approve")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HR_ADMIN', 'MANAGER')")
+    public ResponseEntity<ApiResponse<InterviewDto>> approveInterviewSchedule(
+            @PathVariable Long id,
+            @RequestParam String status,
+            @RequestParam(required = false) String feedback) {
+        Interview updated = recruitmentService.approveInterviewSchedule(id, status, feedback);
         return ResponseEntity.ok(ApiResponse.ok(convertToDto(updated)));
     }
 
@@ -269,6 +279,8 @@ public class RecruitmentController {
                 .interviewerNames(names)
                 .result(entity.getResult())
                 .feedback(entity.getFeedback())
+                .approvalStatus(entity.getApprovalStatus())
+                .approvalFeedback(entity.getApprovalFeedback())
                 .build();
     }
 
@@ -289,6 +301,8 @@ public class RecruitmentController {
                 .interviewers(dto.getInterviewers())
                 .result(dto.getResult())
                 .feedback(dto.getFeedback())
+                .approvalStatus(dto.getApprovalStatus())
+                .approvalFeedback(dto.getApprovalFeedback())
                 .build();
     }
 }

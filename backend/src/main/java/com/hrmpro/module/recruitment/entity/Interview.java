@@ -48,6 +48,16 @@ public class Interview {
 
     private String feedback;
 
+    @Column(name = "approval_status", length = 20)
+    @Builder.Default
+    private String approvalStatus = "PENDING"; // PENDING|APPROVED|REJECTED
+
+    @Column(name = "approval_feedback")
+    private String approvalFeedback;
+
+    @Column(name = "approved_at")
+    private LocalDateTime approvedAt;
+
     @Column(name = "created_at")
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

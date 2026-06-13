@@ -120,14 +120,33 @@ public class RecruitmentService {
     public Interview scheduleInterview(Interview interview) {
         Application app = getApplication(interview.getApplication().getId());
         interview.setApplication(app);
+        interview.setApprovalStatus("PENDING");
         interview.setCreatedAt(LocalDateTime.now());
 
         interview = interviewRepository.save(interview);
 
-        // Tự động gửi email thông báo phỏng vấn
-        sendInterviewEmails(interview);
+        // Gửi email thông báo cho Manager để duyệt lịch
+        sendPendingApprovalEmail(interview);
 
         return interview;
+    }
+
+    @Transactional
+    public Interview approveInterviewSchedule(Long id, String status, String feedback) {
+        Interview interview = getInterview(id);
+        interview.setApprovalStatus(status);
+        interview.setApprovalFeedback(feedback);
+        interview.setApprovedAt(LocalDateTime.now());
+
+        if ("APPROVED".equals(status)) {
+            // Gửi thư mời cho ứng viên và người phỏng vấn sau khi được duyệt
+            sendInterviewEmails(interview);
+        } else if ("REJECTED".equals(status)) {
+            // Thông báo cho Recruiter biết lịch bị từ chối
+            sendRejectedNotificationToRecruiter(interview);
+        }
+
+        return interviewRepository.save(interview);
     }
 
     @Transactional
@@ -146,6 +165,62 @@ public class RecruitmentService {
         applicationRepository.save(interview.getApplication());
 
         return interviewRepository.save(interview);
+    }
+
+    private void sendPendingApprovalEmail(Interview interview) {
+        Application app = interview.getApplication();
+        JobPosting job = app.getJobPosting();
+        if (job.getDepartment() != null && job.getDepartment().getManagerId() != null) {
+            employeeRepository.findById(job.getDepartment().getManagerId()).ifPresent(manager -> {
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+                String timeStr = interview.getScheduledAt().format(formatter);
+
+                String subject = "[HRMPro] Yêu cầu phê duyệt lịch phỏng vấn ứng viên " + app.getCandidateName();
+                String content = String.format(
+                        "Kính chào Anh/Chị %s,\n\n" +
+                        "Hệ thống HRMPro ghi nhận một yêu cầu phê duyệt lịch phỏng vấn mới từ Recruiter:\n\n" +
+                        "Thông tin buổi phỏng vấn:\n" +
+                        "- Ứng viên: %s\n" +
+                        "- Vị trí: %s\n" +
+                        "- Phòng ban: %s\n" +
+                        "- Vòng: %d\n" +
+                        "- Thời gian đề xuất: %s\n" +
+                        "- Hình thức: %s\n" +
+                        "- Địa điểm/Link họp: %s\n\n" +
+                        "Vui lòng đăng nhập vào hệ thống để xem chi tiết và phê duyệt (Đồng ý hoặc Từ chối lịch).\n\n" +
+                        "Trân trọng,\n" +
+                        "Hệ thống HRMPro",
+                        manager.getFullName(), app.getCandidateName(), job.getTitle(),
+                        job.getDepartment().getName(), interview.getRound(), timeStr,
+                        interview.getInterviewType(), interview.getLocation() != null ? interview.getLocation() : interview.getMeetingUrl()
+                );
+                emailService.sendEmail(manager.getEmail(), subject, content);
+            });
+        }
+    }
+
+    private void sendRejectedNotificationToRecruiter(Interview interview) {
+        Application app = interview.getApplication();
+        JobPosting job = app.getJobPosting();
+        if (job.getCreatedBy() != null) {
+            Employee recruiter = job.getCreatedBy();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+            String timeStr = interview.getScheduledAt().format(formatter);
+
+            String subject = "[HRMPro] Lịch phỏng vấn bị từ chối - Ứng viên " + app.getCandidateName();
+            String content = String.format(
+                    "Xin chào %s,\n\n" +
+                    "Lịch phỏng vấn do bạn đề xuất cho ứng viên %s vào lúc %s đã bị từ chối bởi Manager.\n\n" +
+                    "Lý do từ chối/Phản hồi:\n" +
+                    "\"%s\"\n\n" +
+                    "Vui lòng trao đổi lại và thực hiện lên lịch phỏng vấn mới trên hệ thống.\n\n" +
+                    "Trân trọng,\n" +
+                    "Hệ thống HRMPro",
+                    recruiter.getFullName(), app.getCandidateName(), timeStr,
+                    interview.getApprovalFeedback() != null ? interview.getApprovalFeedback() : "Không có lý do chi tiết."
+            );
+            emailService.sendEmail(recruiter.getEmail(), subject, content);
+        }
     }
 
     private void sendInterviewEmails(Interview interview) {
