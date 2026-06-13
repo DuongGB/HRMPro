@@ -63,4 +63,11 @@ public class PositionController {
         positionService.deletePosition(id);
         return ResponseEntity.ok(ApiResponse.ok("Ngừng hoạt động chức danh thành công", null));
     }
+
+    @PostMapping("/{id}/activate")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HR_ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> activatePosition(@PathVariable Long id) {
+        positionService.activatePosition(id);
+        return ResponseEntity.ok(ApiResponse.ok("Kích hoạt lại chức danh thành công", null));
+    }
 }

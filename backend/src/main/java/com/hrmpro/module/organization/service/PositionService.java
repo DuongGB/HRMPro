@@ -104,6 +104,16 @@ public class PositionService {
         log.info("Đã ngừng hoạt động chức danh: {}", position.getName());
     }
 
+    @Transactional
+    public void activatePosition(Long id) {
+        Position position = positionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chức danh với ID: " + id));
+
+        position.setIsActive(true);
+        positionRepository.save(position);
+        log.info("Đã kích hoạt lại chức danh: {}", position.getName());
+    }
+
     private PositionResponse convertToResponse(Position position) {
         return PositionResponse.builder()
                 .id(position.getId())
