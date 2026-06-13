@@ -23,8 +23,8 @@ public interface AttendanceLogRepository extends JpaRepository<AttendanceLog, Lo
 
     @Query("SELECT a FROM AttendanceLog a WHERE " +
            "(:employeeId IS NULL OR a.employee.id = :employeeId) " +
-           "AND (:startDate IS NULL OR a.workDate >= :startDate) " +
-           "AND (:endDate IS NULL OR a.workDate <= :endDate) " +
+           "AND (a.workDate >= COALESCE(:startDate, a.workDate)) " +
+           "AND (a.workDate <= COALESCE(:endDate, a.workDate)) " +
            "AND (:status IS NULL OR a.status = :status) " +
            "AND (:managerId IS NULL OR a.employee.manager.id = :managerId) " +
            "AND (:departmentId IS NULL OR a.employee.department.id = :departmentId)")

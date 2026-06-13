@@ -20,8 +20,8 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
            "(:employeeId IS NULL OR r.employee.id = :employeeId) " +
            "AND (:managerId IS NULL OR r.employee.manager.id = :managerId) " +
            "AND (:status IS NULL OR r.status = :status) " +
-           "AND (:startDate IS NULL OR r.startDate >= :startDate) " +
-           "AND (:endDate IS NULL OR r.endDate <= :endDate) " +
+           "AND (r.startDate >= COALESCE(:startDate, r.startDate)) " +
+           "AND (r.endDate <= COALESCE(:endDate, r.endDate)) " +
            "AND (:departmentId IS NULL OR r.employee.department.id = :departmentId)")
     Page<LeaveRequest> findLeaveRequestsWithFilters(
             @Param("employeeId") Long employeeId,

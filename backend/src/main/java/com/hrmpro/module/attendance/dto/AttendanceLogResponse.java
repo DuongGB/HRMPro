@@ -21,7 +21,7 @@ public class AttendanceLogResponse {
     private String checkInIp;
     private String checkInLocation;
     private String status;
-    private Integer checkCount; // Số lần chấm công trong ngày
+    private Integer checkCount;
     private String note;
     private Long departmentId;
     private String departmentName;
