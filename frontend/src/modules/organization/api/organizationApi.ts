@@ -94,5 +94,9 @@ export const organizationApi = {
 
   deletePosition: async (id: number): Promise<void> => {
     await api.delete(`/positions/${id}`);
+  },
+
+  activatePosition: async (id: number): Promise<void> => {
+    await api.post(`/positions/${id}/activate`);
   }
 };

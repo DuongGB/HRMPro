@@ -427,6 +427,18 @@ const OrgChartPage: React.FC = () => {
     }
   });
 
+  // Mutation: Kích hoạt lại chức vụ
+  const activatePositionMutation = useMutation({
+    mutationFn: organizationApi.activatePosition,
+    onSuccess: () => {
+      refetchDeptPositions();
+      toast.success("Đã kích hoạt lại chức vụ thành công!");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Kích hoạt lại chức vụ thất bại!");
+    }
+  });
+
   // Query: Lấy danh sách nhân viên của phòng ban được click chọn
   const { data: deptEmployeesData, isLoading: isLoadingDeptEmployees } = useQuery({
     queryKey: ["employees-by-dept", viewDeptId, viewDeptPage],
@@ -1646,7 +1658,15 @@ const OrgChartPage: React.FC = () => {
                                   Ngừng HĐ
                                 </Button>
                               ) : (
-                                <span className="text-[10px] italic text-muted-foreground">Không hoạt động</span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => activatePositionMutation.mutate(pos.id)}
+                                  disabled={activatePositionMutation.isPending}
+                                  className="h-6 px-2 text-[10px] text-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-500"
+                                >
+                                  Kích hoạt
+                                </Button>
                               )}
                             </TableCell>
                           )}
