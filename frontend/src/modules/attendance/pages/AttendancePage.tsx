@@ -29,7 +29,8 @@ import {
   ThumbsDown,
   Info,
   CalendarDays,
-  LayoutGrid
+  LayoutGrid,
+  Fingerprint
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -425,27 +426,20 @@ const AttendancePage: React.FC = () => {
 
   // ─── Mutations ────────────────────────────────────────────────────────────────
 
-  // Mutation: Check-in
-  const checkInMutation = useMutation({
-    mutationFn: attendanceApi.checkIn,
-    onSuccess: () => {
+  // Mutation: Chấm công (Single-button)
+  const checkMutation = useMutation({
+    mutationFn: attendanceApi.check,
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["my-attendance"] });
-      toast.success("Check-in thành công!");
+      queryClient.invalidateQueries({ queryKey: ["calendar-attendance"] });
+      toast.success(
+        data.checkCount === 1 
+          ? "Check-in thành công!" 
+          : `Ghi nhận lần check thứ ${data.checkCount} thành công!`
+      );
     },
     onError: (error: any) => {
-      toast.error(error.message || "Check-in thất bại!");
-    }
-  });
-
-  // Mutation: Check-out
-  const checkOutMutation = useMutation({
-    mutationFn: attendanceApi.checkOut,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["my-attendance"] });
-      toast.success("Check-out thành công!");
-    },
-    onError: (error: any) => {
-      toast.error(error.message || "Check-out thất bại!");
+      toast.error(error.message || "Chấm công thất bại!");
     }
   });
 
@@ -504,16 +498,12 @@ const AttendancePage: React.FC = () => {
     setAdjustNote("");
   };
 
-  const handleCheckIn = () => {
-    checkInMutation.mutate({
+  const handleCheck = () => {
+    checkMutation.mutate({
       ipAddress,
       location,
-      note: "Web Check-in"
+      note: "Web Chấm công"
     });
-  };
-
-  const handleCheckOut = () => {
-    checkOutMutation.mutate();
   };
 
   const handleAdjustSubmit = (e: React.FormEvent) => {
@@ -646,33 +636,47 @@ const AttendancePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Nút Check-in / Check-out */}
-              <div className="grid grid-cols-2 gap-4 w-full pt-2">
+              {/* Nút Chấm công duy nhất */}
+              <div className="w-full pt-2">
                 <Button 
-                  onClick={handleCheckIn} 
-                  disabled={!!todayLog?.checkIn || checkInMutation.isPending}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 h-12 rounded-xl"
+                  onClick={handleCheck} 
+                  disabled={checkMutation.isPending}
+                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white flex items-center justify-center gap-2 h-12 rounded-xl shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99]"
                 >
-                  <Play size={16} />
-                  Check-in
-                </Button>
-                <Button 
-                  onClick={handleCheckOut} 
-                  disabled={!todayLog?.checkIn || !!todayLog?.checkOut || checkOutMutation.isPending}
-                  variant="destructive"
-                  className="flex items-center justify-center gap-2 h-12 rounded-xl"
-                >
-                  <Square size={16} />
-                  Check-out
+                  {checkMutation.isPending ? (
+                    <Loader2 className="animate-spin" size={16} />
+                  ) : (
+                    <Fingerprint size={16} />
+                  )}
+                  Chấm công ngay
                 </Button>
               </div>
 
-              {todayLog?.checkIn && (
-                <div className="text-xs text-muted-foreground w-full text-center">
-                  Hôm nay đã check-in lúc: <span className="font-bold text-foreground">{new Date(todayLog.checkIn).toLocaleTimeString("vi-VN")}</span>
-                  {todayLog.checkOut && (
-                    <> và check-out lúc: <span className="font-bold text-foreground">{new Date(todayLog.checkOut).toLocaleTimeString("vi-VN")}</span></>
-                  )}
+              {todayLog && (
+                <div className="text-xs text-muted-foreground w-full space-y-2 bg-muted/30 border rounded-lg p-3">
+                  <div className="flex justify-between items-center">
+                    <span>Số lần đã chấm hôm nay:</span>
+                    <span className="font-bold text-foreground bg-primary/10 text-primary px-2 py-0.5 rounded-full text-[10px]">
+                      {todayLog.checkCount || 1} lần
+                    </span>
+                  </div>
+                  <div className="h-px bg-border/50 my-1" />
+                  <div className="space-y-1 font-mono text-[11px]">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Check-in:</span>
+                      <span className="font-bold text-foreground">
+                        {todayLog.checkIn ? new Date(todayLog.checkIn).toLocaleTimeString("vi-VN") : "—"}
+                      </span>
+                    </div>
+                    {todayLog.checkCount && todayLog.checkCount > 1 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Check-out (lần cuối):</span>
+                        <span className="font-bold text-emerald-600">
+                          {todayLog.checkOut ? new Date(todayLog.checkOut).toLocaleTimeString("vi-VN") : "—"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 

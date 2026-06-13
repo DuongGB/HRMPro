@@ -12,6 +12,7 @@ export interface AttendanceLogResponse {
   checkInIp: string | null;
   checkInLocation: string | null;
   status: string; // ON_TIME|LATE|EARLY_LEAVE|ABSENT|PENDING_ADJUST|ADJUSTED
+  checkCount: number | null;
   note: string | null;
   departmentId: number | null;
   departmentName: string | null;
@@ -33,13 +34,8 @@ export interface AttendanceAdjustmentRequest {
 }
 
 export const attendanceApi = {
-  checkIn: async (data: CheckInRequest): Promise<AttendanceLogResponse> => {
-    const response = (await api.post("/attendance/check-in", data)) as any;
-    return response.data;
-  },
-
-  checkOut: async (): Promise<AttendanceLogResponse> => {
-    const response = (await api.post("/attendance/check-out", {})) as any;
+  check: async (data: CheckInRequest): Promise<AttendanceLogResponse> => {
+    const response = (await api.post("/attendance/check", data)) as any;
     return response.data;
   },
 
