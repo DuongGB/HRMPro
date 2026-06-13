@@ -709,7 +709,6 @@ const AttendancePage: React.FC = () => {
                 disabled={isMyLogsRefetching}
               >
                 <RefreshCw size={12} className={isMyLogsRefetching ? "animate-spin" : ""} />
-                Làm mới
               </Button>
             </CardHeader>
             <CardContent>
@@ -917,7 +916,6 @@ const AttendancePage: React.FC = () => {
                     disabled={isCalendarLogsRefetching}
                   >
                     <RefreshCw size={12} className={isCalendarLogsRefetching ? "animate-spin" : ""} />
-                    Làm mới
                   </Button>
                 </div>
               </CardHeader>
