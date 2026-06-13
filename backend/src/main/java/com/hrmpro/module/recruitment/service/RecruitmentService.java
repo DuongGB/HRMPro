@@ -2,6 +2,9 @@ package com.hrmpro.module.recruitment.service;
 
 import com.hrmpro.common.service.EmailService;
 import com.hrmpro.module.employee.entity.Employee;
+import com.hrmpro.module.recruitment.enums.InterviewType;
+import com.hrmpro.module.recruitment.enums.InterviewResult;
+import com.hrmpro.module.recruitment.enums.InterviewApprovalStatus;
 import com.hrmpro.module.employee.repository.EmployeeRepository;
 import com.hrmpro.module.organization.entity.Department;
 import com.hrmpro.module.organization.entity.Position;
@@ -120,7 +123,7 @@ public class RecruitmentService {
     public Interview scheduleInterview(Interview interview) {
         Application app = getApplication(interview.getApplication().getId());
         interview.setApplication(app);
-        interview.setApprovalStatus("PENDING");
+        interview.setApprovalStatus(InterviewApprovalStatus.PENDING);
         interview.setCreatedAt(LocalDateTime.now());
 
         interview = interviewRepository.save(interview);
@@ -132,16 +135,16 @@ public class RecruitmentService {
     }
 
     @Transactional
-    public Interview approveInterviewSchedule(Long id, String status, String feedback) {
+    public Interview approveInterviewSchedule(Long id, InterviewApprovalStatus status, String feedback) {
         Interview interview = getInterview(id);
         interview.setApprovalStatus(status);
         interview.setApprovalFeedback(feedback);
         interview.setApprovedAt(LocalDateTime.now());
 
-        if ("APPROVED".equals(status)) {
+        if (InterviewApprovalStatus.APPROVED == status) {
             // Gửi thư mời cho ứng viên và người phỏng vấn sau khi được duyệt
             sendInterviewEmails(interview);
-        } else if ("REJECTED".equals(status)) {
+        } else if (InterviewApprovalStatus.REJECTED == status) {
             // Thông báo cho Recruiter biết lịch bị từ chối
             sendRejectedNotificationToRecruiter(interview);
         }
@@ -150,15 +153,15 @@ public class RecruitmentService {
     }
 
     @Transactional
-    public Interview updateInterviewResult(Long id, String result, String feedback) {
+    public Interview updateInterviewResult(Long id, InterviewResult result, String feedback) {
         Interview interview = getInterview(id);
         interview.setResult(result);
         interview.setFeedback(feedback);
 
         // Đồng thời cập nhật trạng thái của ứng viên nếu phỏng vấn tạch/đậu
-        if ("PASSED".equals(result)) {
+        if (InterviewResult.PASSED == result) {
             interview.getApplication().setStage("OFFER");
-        } else if ("FAILED".equals(result)) {
+        } else if (InterviewResult.FAILED == result) {
             interview.getApplication().setStage("REJECTED");
             interview.getApplication().setRejectedReason("Không đạt phỏng vấn vòng " + interview.getRound());
         }

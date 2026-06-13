@@ -1,5 +1,8 @@
 package com.hrmpro.module.recruitment.dto;
 
+import com.hrmpro.module.recruitment.enums.InterviewType;
+import com.hrmpro.module.recruitment.enums.InterviewResult;
+import com.hrmpro.module.recruitment.enums.InterviewApprovalStatus;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -15,15 +18,15 @@ public class InterviewDto {
     private String candidateName;
     private String jobPostingTitle;
     private Integer round;
-    private String interviewType; // PHONE|ONLINE|ONSITE|TECHNICAL
+    private InterviewType interviewType;
     private LocalDateTime scheduledAt;
     private Integer durationMinutes;
     private String location;
     private String meetingUrl;
-    private String interviewers; // Chuỗi ID người phỏng vấn, ví dụ "1,2"
-    private String interviewerNames; // Tên hiển thị của người phỏng vấn
-    private String result; // PASSED|FAILED|NO_SHOW|RESCHEDULED
+    private String interviewers;
+    private String interviewerNames; 
+    private InterviewResult result; 
     private String feedback;
-    private String approvalStatus;
+    private InterviewApprovalStatus approvalStatus;
     private String approvalFeedback;
 }

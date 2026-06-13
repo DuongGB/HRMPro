@@ -1,5 +1,8 @@
 package com.hrmpro.module.recruitment.entity;
 
+import com.hrmpro.module.recruitment.enums.InterviewType;
+import com.hrmpro.module.recruitment.enums.InterviewResult;
+import com.hrmpro.module.recruitment.enums.InterviewApprovalStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -26,7 +29,8 @@ public class Interview {
     private Integer round = 1;
 
     @Column(name = "interview_type", length = 20)
-    private String interviewType; // PHONE|ONLINE|ONSITE|TECHNICAL
+    @Enumerated(EnumType.STRING)
+    private InterviewType interviewType;
 
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;
@@ -41,16 +45,18 @@ public class Interview {
     @Column(name = "meeting_url")
     private String meetingUrl;
 
-    private String interviewers; // Danh sách ID người phỏng vấn dạng chuỗi (ví dụ: "1,2,3")
+    private String interviewers; 
 
     @Column(length = 20)
-    private String result; // PASSED|FAILED|NO_SHOW|RESCHEDULED
+    @Enumerated(EnumType.STRING)
+    private InterviewResult result;
 
     private String feedback;
 
     @Column(name = "approval_status", length = 20)
+    @Enumerated(EnumType.STRING)
     @Builder.Default
-    private String approvalStatus = "PENDING"; // PENDING|APPROVED|REJECTED
+    private InterviewApprovalStatus approvalStatus = InterviewApprovalStatus.PENDING;
 
     @Column(name = "approval_feedback")
     private String approvalFeedback;

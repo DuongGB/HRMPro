@@ -2,6 +2,9 @@ package com.hrmpro.module.recruitment.controller;
 
 import com.hrmpro.common.dto.ApiResponse;
 import com.hrmpro.module.auth.entity.UserPrincipal;
+import com.hrmpro.module.recruitment.enums.InterviewType;
+import com.hrmpro.module.recruitment.enums.InterviewResult;
+import com.hrmpro.module.recruitment.enums.InterviewApprovalStatus;
 import com.hrmpro.module.employee.repository.EmployeeRepository;
 import com.hrmpro.module.organization.entity.Department;
 import com.hrmpro.module.organization.entity.Position;
@@ -146,7 +149,7 @@ public class RecruitmentController {
     @PreAuthorize("hasRole('RECRUITER')")
     public ResponseEntity<ApiResponse<InterviewDto>> updateInterviewResult(
             @PathVariable Long id,
-            @RequestParam String result,
+            @RequestParam InterviewResult result,
             @RequestParam(required = false) String feedback) {
         Interview updated = recruitmentService.updateInterviewResult(id, result, feedback);
         return ResponseEntity.ok(ApiResponse.ok(convertToDto(updated)));
@@ -156,7 +159,7 @@ public class RecruitmentController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HR_ADMIN', 'MANAGER')")
     public ResponseEntity<ApiResponse<InterviewDto>> approveInterviewSchedule(
             @PathVariable Long id,
-            @RequestParam String status,
+            @RequestParam InterviewApprovalStatus status,
             @RequestParam(required = false) String feedback) {
         Interview updated = recruitmentService.approveInterviewSchedule(id, status, feedback);
         return ResponseEntity.ok(ApiResponse.ok(convertToDto(updated)));
