@@ -291,6 +291,9 @@ const AttendancePage: React.FC = () => {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ id: number; approve: boolean } | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  
+  // View detail dialog
+  const [viewDetailLog, setViewDetailLog] = useState<AttendanceLogResponse | null>(null);
 
   // Xác định quyền hiển thị tab và duyệt
   const isEmployeeOnly = roles.includes("EMPLOYEE") && roles.length === 1;
@@ -710,11 +713,16 @@ const AttendancePage: React.FC = () => {
                       <TableHead>Check-out</TableHead>
                       <TableHead>Trạng thái</TableHead>
                       <TableHead>Ghi chú</TableHead>
+                      <TableHead className="w-[80px] text-right">Chi tiết</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {myLogs.content.map((log) => (
-                      <TableRow key={log.id}>
+                      <TableRow 
+                        key={log.id} 
+                        className="hover:bg-muted/40 cursor-pointer transition-colors"
+                        onClick={() => setViewDetailLog(log)}
+                      >
                         <TableCell className="font-semibold text-sm">
                           {new Date(log.workDate).toLocaleDateString("vi-VN", { weekday: 'short', day: '2-digit', month: '2-digit' })}
                         </TableCell>
@@ -731,6 +739,11 @@ const AttendancePage: React.FC = () => {
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs truncate max-w-[150px]" title={log.note || ""}>
                           {log.note || "—"}
+                        </TableCell>
+                        <TableCell className="text-right" onClick={(e) => { e.stopPropagation(); setViewDetailLog(log); }}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary rounded-full">
+                            <Eye size={14} />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1170,11 +1183,16 @@ const AttendancePage: React.FC = () => {
                     <TableHead>Check-out</TableHead>
                     <TableHead>Trạng thái</TableHead>
                     <TableHead>Ghi chú</TableHead>
+                    <TableHead className="w-[80px] text-right">Chi tiết</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {selectedDayLogs.map((log) => (
-                    <TableRow key={log.id}>
+                    <TableRow 
+                      key={log.id} 
+                      className="hover:bg-muted/40 cursor-pointer transition-colors"
+                      onClick={() => setViewDetailLog(log)}
+                    >
                       <TableCell>
                         <div className="text-sm font-semibold">{log.employeeName}</div>
                         <span className="text-[10px] text-muted-foreground font-mono">{log.employeeCode}</span>
@@ -1196,11 +1214,116 @@ const AttendancePage: React.FC = () => {
                       <TableCell className="text-xs text-muted-foreground italic truncate max-w-[120px]" title={log.note || ""}>
                         {log.note || "—"}
                       </TableCell>
+                      <TableCell className="text-right" onClick={(e) => { e.stopPropagation(); setViewDetailLog(log); }}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary rounded-full">
+                          <Eye size={14} />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════════════════════════════════════════════════════════════════════════ */}
+      {/* Dialog: Chi tiết bản ghi chấm công (Click xem chi tiết từ các bảng) ────── */}
+      {/* ═══════════════════════════════════════════════════════════════════════════ */}
+      <Dialog open={!!viewDetailLog} onOpenChange={(open) => { if (!open) setViewDetailLog(null); }}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+              <Info size={20} className="text-primary" />
+              Chi tiết bản ghi chấm công
+            </DialogTitle>
+            <DialogDescription>
+              Thông tin chi tiết lượt chấm công ngày {viewDetailLog ? new Date(viewDetailLog.workDate).toLocaleDateString("vi-VN", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" }) : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          {viewDetailLog && (
+            <div className="space-y-6 py-2">
+              {/* Thông tin nhân viên */}
+              <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-xl border border-border/50">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold shrink-0">
+                  {viewDetailLog.employeeName.charAt(0)}
+                </div>
+                <div>
+                  <div className="font-semibold text-sm text-foreground flex items-center gap-2">
+                    {viewDetailLog.employeeName}
+                    <Badge variant="outline" className="text-[9px] font-mono py-0 px-1">{viewDetailLog.employeeCode}</Badge>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {viewDetailLog.departmentName || "Không rõ phòng ban"}
+                  </div>
+                </div>
+              </div>
+
+              {/* Chi tiết chấm công Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Check-in */}
+                <div className="p-3 bg-emerald-500/5 rounded-xl border border-emerald-500/10 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold">
+                    <Clock size={14} />
+                    <span>Check-in</span>
+                  </div>
+                  <div className="text-lg font-bold font-mono text-emerald-700">
+                    {viewDetailLog.checkIn ? new Date(viewDetailLog.checkIn).toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : "—"}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground space-y-0.5">
+                    <p className="truncate">IP: {viewDetailLog.checkInIp || "—"}</p>
+                    <p className="truncate">Vị trí: {viewDetailLog.checkInLocation || "—"}</p>
+                  </div>
+                </div>
+
+                {/* Check-out */}
+                <div className="p-3 bg-blue-500/5 rounded-xl border border-blue-500/10 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-xs text-blue-600 font-semibold">
+                    <Clock size={14} />
+                    <span>Check-out</span>
+                  </div>
+                  <div className="text-lg font-bold font-mono text-blue-700">
+                    {viewDetailLog.checkOut ? new Date(viewDetailLog.checkOut).toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : "—"}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    <p>Lượt chấm: <span className="font-bold text-foreground">{viewDetailLog.checkCount || "—"} lần</span></p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Thông tin thêm */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-xs py-1 border-b">
+                  <span className="text-muted-foreground">Trạng thái công</span>
+                  <Badge variant="outline" className={`text-[10px] font-semibold ${STATUS_BADGES[viewDetailLog.status] || ""}`}>
+                    {STATUS_LABELS[viewDetailLog.status] || viewDetailLog.status}
+                  </Badge>
+                </div>
+
+                {viewDetailLog.approvedByName && (
+                  <div className="flex justify-between items-center text-xs py-1 border-b">
+                    <span className="text-muted-foreground">Người phê duyệt</span>
+                    <span className="font-medium text-emerald-600 flex items-center gap-1">
+                      <CheckCircle2 size={12} />
+                      {viewDetailLog.approvedByName}
+                    </span>
+                  </div>
+                )}
+
+                <div className="space-y-1 text-xs">
+                  <span className="text-muted-foreground">Ghi chú nhật ký</span>
+                  <p className="p-2.5 bg-muted/30 rounded-lg border text-foreground/80 italic text-xs leading-relaxed">
+                    {viewDetailLog.note || "Không có ghi chú nào cho ngày này."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <Button onClick={() => setViewDetailLog(null)} className="w-24">Đóng</Button>
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>
