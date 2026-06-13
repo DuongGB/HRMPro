@@ -49,6 +49,8 @@ export interface InterviewResponse {
   interviewerNames: string;
   result: string | null; // PASSED|FAILED|NO_SHOW|RESCHEDULED
   feedback: string | null;
+  approvalStatus: string | null;
+  approvalFeedback: string | null;
 }
 
 export const recruitmentApi = {
@@ -105,6 +107,16 @@ export const recruitmentApi = {
   },
   scheduleInterview: async (data: Partial<InterviewResponse>): Promise<InterviewResponse> => {
     const response = (await api.post("/recruitment/interviews", data)) as any;
+    return response.data;
+  },
+  approveInterviewSchedule: async (
+    id: number,
+    status: string,
+    feedback?: string
+  ): Promise<InterviewResponse> => {
+    const response = (await api.put(`/recruitment/interviews/${id}/approve`, null, {
+      params: { status, feedback },
+    })) as any;
     return response.data;
   },
   updateInterviewResult: async (
