@@ -273,7 +273,9 @@ const EmployeeListPage: React.FC = () => {
                       <SelectContent>
                         <SelectItem value="none">Chưa phân phòng</SelectItem>
                         {departments.map(d => (
-                          <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                          <SelectItem key={d.id} value={d.id.toString()} disabled={!d.isActive}>
+                            {d.name} {!d.isActive && " (Ngừng hoạt động)"}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

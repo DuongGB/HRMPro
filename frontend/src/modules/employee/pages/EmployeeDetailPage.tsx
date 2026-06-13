@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { employeeApi, type SelfUpdateRequest } from "../api/employeeApi";
+import { organizationApi } from "../../organization/api/organizationApi";
 import { toast } from "sonner";
 import { usePermission } from "../../../hooks/usePermission";
 import { useAppSelector } from "../../../store";
@@ -145,6 +146,28 @@ const EmployeeDetailPage: React.FC = () => {
     queryKey: ["employee", empId],
     queryFn: () => employeeApi.getEmployee(empId),
   });
+
+  // Lấy danh sách phòng ban phục vụ chỉnh sửa
+  const { data: departments = [] } = useQuery({
+    queryKey: ["flat-departments"],
+    queryFn: organizationApi.getDepartments,
+    enabled: isEditMode,
+  });
+
+  // Lấy danh sách chức vụ
+  const { data: positions = [] } = useQuery({
+    queryKey: ["all-positions"],
+    queryFn: organizationApi.getPositions,
+    enabled: isEditMode,
+  });
+
+  // Lấy danh sách nhân viên làm quản lý
+  const { data: managersPage } = useQuery({
+    queryKey: ["managers-list"],
+    queryFn: () => employeeApi.getEmployees("", null, "ACTIVE", 0, 200),
+    enabled: isEditMode,
+  });
+  const managers = managersPage?.content || [];
 
   // Sync form state mỗi khi employee data thay đổi (fix meta.onSuccess deprecated)
   useEffect(() => {
@@ -532,10 +555,60 @@ const EmployeeDetailPage: React.FC = () => {
                   {/* Tổ chức */}
                   <div>
                     <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Phân công tổ chức</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div className="space-y-1">
                         <Label htmlFor="edit-probation">Ngày hết thử việc</Label>
                         <Input id="edit-probation" type="date" value={probationEnd} onChange={e => setProbationEnd(e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-dept">Phòng ban</Label>
+                        <Select value={deptId} onValueChange={setDeptId}>
+                          <SelectTrigger id="edit-dept">
+                            <SelectValue placeholder="Chọn phòng ban..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Chưa phân phòng</SelectItem>
+                            {departments.map(d => (
+                              <SelectItem key={d.id} value={d.id.toString()} disabled={!d.isActive}>
+                                {d.name} {!d.isActive && " (Ngừng hoạt động)"}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-pos">Chức danh</Label>
+                        <Select value={posId} onValueChange={setPosId}>
+                          <SelectTrigger id="edit-pos">
+                            <SelectValue placeholder="Chọn chức danh..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Chưa phân chức danh</SelectItem>
+                            {positions.map(p => (
+                              <SelectItem key={p.id} value={p.id.toString()} disabled={!p.isActive}>
+                                {p.name} {!p.isActive && " (Ngừng hoạt động)"}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-mgr">Quản lý trực tiếp</Label>
+                        <Select value={mgrId} onValueChange={setMgrId}>
+                          <SelectTrigger id="edit-mgr">
+                            <SelectValue placeholder="Chọn quản lý..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Không có quản lý</SelectItem>
+                            {managers
+                              .filter(m => m.id !== empId)
+                              .map(m => (
+                                <SelectItem key={m.id} value={m.id.toString()}>
+                                  {m.fullName} ({m.employeeCode})
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                   </div>
