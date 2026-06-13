@@ -52,7 +52,7 @@ public class LeaveService {
     /**
      * Lấy số dư phép của nhân viên
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public List<LeaveBalanceResponse> getLeaveBalances(Long employeeId, Integer year) {
         if (!employeeRepository.existsById(employeeId)) {
             throw new ResourceNotFoundException("Không tìm thấy nhân viên");
