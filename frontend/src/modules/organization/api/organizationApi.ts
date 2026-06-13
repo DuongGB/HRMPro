@@ -67,6 +67,11 @@ export const organizationApi = {
     await api.delete(`/departments/${id}`);
   },
 
+  activateDepartment: async (id: number): Promise<DepartmentResponse> => {
+    const response = (await api.post(`/departments/${id}/activate`)) as any;
+    return response.data;
+  },
+
   getPositions: async (): Promise<PositionResponse[]> => {
     const response = (await api.get("/positions")) as any;
     return response.data;
