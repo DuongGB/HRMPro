@@ -11,7 +11,6 @@ import {
   Plus, 
   Edit, 
   Trash2, 
-  Loader2, 
   ChevronDown, 
   ChevronRight,
   ZoomIn,
@@ -19,6 +18,9 @@ import {
   LayoutGrid,
   Network,
   Search,
+  AlertTriangle,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -58,13 +60,14 @@ interface OrgNodeProps {
   onEdit: (dept: DepartmentResponse) => void;
   onAddChild: (parentId: number) => void;
   onDelete: (id: number) => void;
+  onActive: (id: number) => void;
   onViewEmployees: (deptId: number, deptName: string) => void;
   canManage: boolean;
   canViewEmployees: boolean;
   searchTerm: string;
 }
 
-const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, onViewEmployees, canManage, canViewEmployees, searchTerm }) => {
+const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, onActive, onViewEmployees, canManage, canViewEmployees, searchTerm }) => {
   const [collapsed, setCollapsed] = useState(false);
   const hasChildren = node.children && node.children.length > 0;
 
@@ -106,9 +109,11 @@ const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, o
         className={`relative group flex flex-col items-center bg-card border rounded-xl p-4 shadow-sm min-w-[240px] max-w-[280px] transition-all duration-300 hover:shadow-md ${
           canViewEmployees ? "cursor-pointer" : "cursor-default"
         } ${
-          isMatched 
-            ? "border-primary ring-2 ring-primary/20 bg-primary/5 shadow-md scale-105" 
-            : "border-border hover:border-primary/50"
+          !node.isActive
+            ? "border-destructive/40 bg-destructive/5 opacity-70 hover:opacity-100"
+            : isMatched 
+              ? "border-primary ring-2 ring-primary/20 bg-primary/5 shadow-md scale-105" 
+              : "border-border hover:border-primary/50"
         }`}
       >
         
@@ -133,13 +138,18 @@ const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, o
             <Building2 size={20} />
           </div>
           <div className="truncate w-full text-left space-y-1">
-            <h4 className="font-bold text-foreground truncate text-sm leading-tight" title={node.name}>
+            <h4 className={`font-bold truncate text-sm leading-tight ${!node.isActive ? "text-destructive" : "text-foreground"}`} title={node.name}>
               {node.name}
             </h4>
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-[10px] bg-muted text-muted-foreground border rounded px-1.5 py-0.5 font-mono font-semibold">
                 {node.code}
               </span>
+              {!node.isActive && (
+                <Badge variant="destructive" className="text-[9px] px-1.5 py-0.5 h-4 font-semibold uppercase tracking-wider bg-rose-500 text-white border-rose-600">
+                  Ngừng HĐ
+                </Badge>
+              )}
               {hasChildren && (
                 <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4 font-normal">
                   {node.children?.length} nhánh con
@@ -168,8 +178,9 @@ const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, o
               onClick={() => onAddChild(node.id)}
               className="p-1.5 rounded-md text-primary hover:bg-primary/10 transition-colors"
               title="Thêm phòng ban con"
+              disabled={!node.isActive}
             >
-              <Plus size={13} className="stroke-[2.5]" />
+              <Plus size={13} className={`stroke-[2.5] ${!node.isActive ? "opacity-30 cursor-not-allowed" : ""}`} />
             </button>
             <button 
               onClick={() => onEdit(node)}
@@ -178,14 +189,24 @@ const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, o
             >
               <Edit size={13} className="stroke-[2.5]" />
             </button>
-            <button 
-              onClick={() => onDelete(node.id)}
-              className="p-1.5 rounded-md text-destructive hover:bg-destructive/10 transition-colors"
-              title="Xóa phòng ban"
-              disabled={node.code === "DEP-EXEC"} // Khóa không cho xóa ban giám đốc
-            >
-              <Trash2 size={13} className="stroke-[2.5]" />
-            </button>
+            {node.isActive ? (
+              <button 
+                onClick={() => onDelete(node.id)}
+                className="p-1.5 rounded-md text-destructive hover:bg-destructive/10 transition-colors"
+                title="Ngừng hoạt động"
+                disabled={node.code === "DEP-EXEC"}
+              >
+                <Trash2 size={13} className="stroke-[2.5]" />
+              </button>
+            ) : (
+              <button 
+                onClick={() => onActive(node.id)}
+                className="p-1.5 rounded-md text-emerald-500 hover:bg-emerald-500/10 transition-colors"
+                title="Kích hoạt lại"
+              >
+                <CheckCircle2 size={13} className="stroke-[2.5]" />
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -218,6 +239,7 @@ const OrgNode: React.FC<OrgNodeProps> = ({ node, onEdit, onAddChild, onDelete, o
                   onEdit={onEdit} 
                   onAddChild={onAddChild} 
                   onDelete={onDelete} 
+                  onActive={onActive}
                   onViewEmployees={onViewEmployees}
                   canManage={canManage}
                   canViewEmployees={canViewEmployees}
@@ -327,6 +349,14 @@ const OrgChartPage: React.FC = () => {
   const [viewDeptName, setViewDeptName] = useState("");
   const [viewDeptPage, setViewDeptPage] = useState(0);
 
+  // States confirm ngừng hoạt động phòng ban
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [deptIdToDelete, setDeptIdToDelete] = useState<number | null>(null);
+
+  // States confirm kích hoạt lại phòng ban
+  const [isConfirmActiveOpen, setIsConfirmActiveOpen] = useState(false);
+  const [deptIdToActive, setDeptIdToActive] = useState<number | null>(null);
+
   // Query: Lấy cây phòng ban (cache 2 phút, invalidate khi mutation thành công)
   const { data: tree = [], isLoading } = useQuery({
     queryKey: ["department-tree"],
@@ -398,6 +428,18 @@ const OrgChartPage: React.FC = () => {
     }
   });
 
+  // Mutation: Kích hoạt lại phòng ban
+  const activateMutation = useMutation({
+    mutationFn: organizationApi.activateDepartment,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["department-tree"] });
+      toast.success("Kích hoạt hoạt động lại phòng ban thành công!");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Kích hoạt lại phòng ban thất bại!");
+    }
+  });
+
   const resetForm = () => {
     setCode("");
     setName("");
@@ -436,21 +478,13 @@ const OrgChartPage: React.FC = () => {
   };
 
   const handleDelete = (id: number) => {
-    toast.warning(
-      "Xác nhận ngừng hoạt động phòng ban?",
-      {
-        description: "Các phòng ban con và nhân sự trực thuộc sẽ bị ảnh hưởng. Hành động này không thể hoàn tác.",
-        action: {
-          label: "Ngừng hoạt động",
-          onClick: () => deleteMutation.mutate(id),
-        },
-        cancel: {
-          label: "Hủy",
-          onClick: () => {},
-        },
-        duration: 8000,
-      }
-    );
+    setDeptIdToDelete(id);
+    setIsConfirmDeleteOpen(true);
+  };
+
+  const handleActive = (id: number) => {
+    setDeptIdToActive(id);
+    setIsConfirmActiveOpen(true);
   };
 
   const handleSelectEmployee = (emp: EmployeeResponse) => {
@@ -673,6 +707,7 @@ const OrgChartPage: React.FC = () => {
                   onEdit={handleEdit} 
                   onAddChild={handleAddChild} 
                   onDelete={handleDelete} 
+                  onActive={handleActive}
                   onViewEmployees={handleViewEmployees}
                   canManage={canManage}
                   canViewEmployees={canViewEmployees}
@@ -706,13 +741,24 @@ const OrgChartPage: React.FC = () => {
                     if (!canViewEmployees) return;
                     handleViewEmployees(dept.id, dept.name);
                   }}
-                  className={`${canViewEmployees ? "cursor-pointer" : "cursor-default"} hover:shadow-md transition-all border border-border/60 hover:border-primary/40 relative overflow-hidden group`}
+                  className={`${canViewEmployees ? "cursor-pointer" : "cursor-default"} hover:shadow-md transition-all border relative overflow-hidden group ${
+                    !dept.isActive 
+                      ? "border-destructive/40 bg-destructive/5 opacity-70 hover:opacity-100" 
+                      : "border-border/60 hover:border-primary/40"
+                  }`}
                 >
-                  <div className="absolute top-0 left-0 w-1.5 h-full bg-primary/20 group-hover:bg-primary transition-colors" />
+                  <div className={`absolute top-0 left-0 w-1.5 h-full transition-colors ${!dept.isActive ? "bg-destructive" : "bg-primary/20 group-hover:bg-primary"}`} />
                   <CardHeader className="pb-3 pl-6">
                     <div className="flex items-start justify-between gap-2">
                       <div className="space-y-1">
-                        <CardTitle className="text-base font-bold text-foreground leading-snug">{dept.name}</CardTitle>
+                        <CardTitle className={`text-base font-bold leading-snug flex flex-wrap items-center gap-1.5 ${!dept.isActive ? "text-destructive" : "text-foreground"}`}>
+                          {dept.name}
+                          {!dept.isActive && (
+                            <Badge variant="destructive" className="text-[9px] py-0.5 px-1.5 h-4 font-semibold uppercase tracking-wider bg-rose-500 text-white">
+                              Ngừng HĐ
+                            </Badge>
+                          )}
+                        </CardTitle>
                         <CardDescription className="font-mono text-xs text-primary font-medium">{dept.code}</CardDescription>
                       </div>
                       <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
@@ -763,8 +809,9 @@ const OrgChartPage: React.FC = () => {
                           size="sm" 
                           className="h-8 px-2.5 text-xs flex items-center gap-1 hover:text-primary"
                           onClick={() => handleAddChild(dept.id)}
+                          disabled={!dept.isActive}
                         >
-                          <Plus size={13} />
+                          <Plus size={13} className={!dept.isActive ? "opacity-30" : ""} />
                           Thêm con
                         </Button>
                         <Button 
@@ -776,16 +823,28 @@ const OrgChartPage: React.FC = () => {
                           <Edit size={13} />
                           Sửa
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 px-2.5 text-xs flex items-center gap-1 text-destructive hover:text-destructive/90 hover:bg-destructive/5"
-                          disabled={dept.code === "DEP-EXEC"}
-                          onClick={() => handleDelete(dept.id)}
-                        >
-                          <Trash2 size={13} />
-                          Ngừng HĐ
-                        </Button>
+                        {dept.isActive ? (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 px-2.5 text-xs flex items-center gap-1 text-destructive hover:text-destructive/90 hover:bg-destructive/5"
+                            disabled={dept.code === "DEP-EXEC"}
+                            onClick={() => handleDelete(dept.id)}
+                          >
+                            <Trash2 size={13} />
+                            Ngừng HĐ
+                          </Button>
+                        ) : (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 px-2.5 text-xs flex items-center gap-1 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/5"
+                            onClick={() => handleActive(dept.id)}
+                          >
+                            <CheckCircle2 size={13} />
+                            Kích hoạt
+                          </Button>
+                        )}
                       </div>
                     )}
                   </CardContent>
@@ -994,38 +1053,55 @@ const OrgChartPage: React.FC = () => {
               </div>
             ) : (
               <div className="divide-y">
-                {employeeData.content.map((emp) => (
-                  <div key={emp.id} className="flex items-center justify-between p-3 hover:bg-muted/40 transition-colors">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 font-bold text-xs">
-                        {emp.firstName.charAt(0)}
-                      </div>
-                      <div className="min-w-0 text-left">
-                        <p className="font-semibold text-xs text-foreground truncate">{emp.fullName}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{emp.email}</p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[9px] bg-muted border rounded px-1 py-0.2 font-mono font-medium">
-                            {emp.employeeCode}
-                          </span>
-                          {emp.positionName && (
-                            <span className="text-[9px] text-primary bg-primary/5 px-1 py-0.2 rounded border border-primary/10">
-                              {emp.positionName}
+                {employeeData.content.map((emp) => {
+                  const isBelongsToOtherDept = emp.departmentId !== null && (!isEditMode || emp.departmentId !== selectedDept?.id);
+                  return (
+                    <div key={emp.id} className={`flex items-center justify-between p-3 hover:bg-muted/40 transition-colors ${isBelongsToOtherDept ? "opacity-60" : ""}`}>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 font-bold text-xs">
+                          {emp.firstName.charAt(0)}
+                        </div>
+                        <div className="min-w-0 text-left">
+                          <p className="font-semibold text-xs text-foreground truncate">{emp.fullName}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">{emp.email}</p>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                            <span className="text-[9px] bg-muted border rounded px-1 py-0.2 font-mono font-medium">
+                              {emp.employeeCode}
                             </span>
-                          )}
+                            {emp.positionName && (
+                              <span className="text-[9px] text-primary bg-primary/5 px-1 py-0.2 rounded border border-primary/10">
+                                {emp.positionName}
+                              </span>
+                            )}
+                            {emp.departmentName ? (
+                              <span className={`text-[9px] px-1 py-0.2 rounded border ${
+                                isBelongsToOtherDept 
+                                  ? "bg-rose-500/10 text-rose-500 border-rose-500/20" 
+                                  : "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                              }`}>
+                                Phòng: {emp.departmentName} {isBelongsToOtherDept && "(Khác)"}
+                              </span>
+                            ) : (
+                              <span className="text-[9px] text-muted-foreground bg-muted/40 px-1 py-0.2 rounded border">
+                                Chưa có phòng ban
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
+                      <Button
+                        type="button"
+                        variant={isBelongsToOtherDept ? "outline" : "secondary"}
+                        size="sm"
+                        onClick={() => handleSelectEmployee(emp)}
+                        disabled={isBelongsToOtherDept}
+                        className="h-7 px-2.5 text-[11px]"
+                      >
+                        {isBelongsToOtherDept ? "Khóa" : "Chọn"}
+                      </Button>
                     </div>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => handleSelectEmployee(emp)}
-                      className="h-7 px-2.5 text-[11px]"
-                    >
-                      Chọn
-                    </Button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1263,6 +1339,70 @@ const OrgChartPage: React.FC = () => {
           <DialogFooter className="pt-3 border-t mt-3 shrink-0">
             <Button type="button" variant="outline" size="sm" onClick={() => setIsViewEmployeesOpen(false)}>
               Đóng
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog xác nhận ngừng hoạt động phòng ban */}
+      <Dialog open={isConfirmDeleteOpen} onOpenChange={setIsConfirmDeleteOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" /> Xác nhận ngừng hoạt động?
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Bạn có chắc chắn muốn ngừng hoạt động phòng ban này? Các phòng ban con và nhân sự trực thuộc sẽ bị ảnh hưởng.
+              <br />
+              <strong className="text-foreground mt-2 block">Hành động này không thể hoàn tác.</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
+            <Button type="button" variant="outline" onClick={() => setIsConfirmDeleteOpen(false)}>
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                if (deptIdToDelete !== null) {
+                  deleteMutation.mutate(deptIdToDelete);
+                  setIsConfirmDeleteOpen(false);
+                }
+              }}
+            >
+              Ngừng hoạt động
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog xác nhận kích hoạt lại phòng ban */}
+      <Dialog open={isConfirmActiveOpen} onOpenChange={setIsConfirmActiveOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="text-emerald-500 flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5" /> Xác nhận kích hoạt lại?
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Bạn có chắc chắn muốn kích hoạt hoạt động lại phòng ban này? Các hoạt động của phòng ban sẽ được phục hồi.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
+            <Button type="button" variant="outline" onClick={() => setIsConfirmActiveOpen(false)}>
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white hover:text-white"
+              onClick={() => {
+                if (deptIdToActive !== null) {
+                  activateMutation.mutate(deptIdToActive);
+                  setIsConfirmActiveOpen(false);
+                }
+              }}
+            >
+              Kích hoạt lại
             </Button>
           </DialogFooter>
         </DialogContent>
