@@ -204,6 +204,17 @@ public class DepartmentService {
         log.info("Đã ngừng hoạt động phòng ban: {}", department.getName());
     }
 
+    @Transactional
+    public DepartmentResponse activateDepartment(Long id) {
+        Department department = departmentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phòng ban với ID: " + id));
+        department.setIsActive(true);
+        department.setUpdatedAt(LocalDateTime.now());
+        Department saved = departmentRepository.save(department);
+        log.info("Đã kích hoạt lại phòng ban: {}", saved.getName());
+        return convertToResponseWithNoChildren(saved);
+    }
+
     private DepartmentResponse convertToResponseWithNoChildren(Department dept) {
         String parentName = null;
         if (dept.getParentId() != null) {

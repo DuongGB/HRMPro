@@ -63,4 +63,11 @@ public class DepartmentController {
         departmentService.deleteDepartment(id);
         return ResponseEntity.ok(ApiResponse.ok("Ngừng hoạt động phòng ban thành công", null));
     }
+
+    @PostMapping("/{id}/activate")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HR_ADMIN')")
+    public ResponseEntity<ApiResponse<DepartmentResponse>> activateDepartment(@PathVariable Long id) {
+        DepartmentResponse response = departmentService.activateDepartment(id);
+        return ResponseEntity.ok(ApiResponse.ok("Kích hoạt lại phòng ban thành công", response));
+    }
 }
