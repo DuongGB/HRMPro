@@ -29,7 +29,7 @@ public class EmployeeController {
     private final EmployeeService employeeService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HR_ADMIN', 'HR_STAFF', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HR_ADMIN', 'HR_STAFF', 'MANAGER', 'RECRUITER')")
     public ResponseEntity<ApiResponse<PageResponse<EmployeeResponse>>> getEmployees(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Long departmentId,

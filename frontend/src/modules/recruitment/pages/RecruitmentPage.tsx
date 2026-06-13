@@ -110,6 +110,13 @@ const RecruitmentPage: React.FC = () => {
   const [interviewLocation, setInterviewLocation] = useState("");
   const [interviewUrl, setInterviewUrl] = useState("");
   const [selectedInterviewerIds, setSelectedInterviewerIds] = useState<string[]>([]);
+  const [interviewerSearch, setInterviewerSearch] = useState("");
+  const [isSelectInterviewersOpen, setIsSelectInterviewersOpen] = useState(false);
+
+  // Drag and Drop State
+  const [draggedAppId, setDraggedAppId] = useState<number | null>(null);
+  const [draggedAppSourceStage, setDraggedAppSourceStage] = useState<string>("");
+  const [activeDropStage, setActiveDropStage] = useState<string | null>(null);
 
   // Dialog State: Cập nhật kết quả phỏng vấn
   const [isInterviewResultOpen, setIsInterviewResultOpen] = useState(false);
@@ -161,6 +168,13 @@ const RecruitmentPage: React.FC = () => {
     enabled: isScheduleInterviewOpen,
   });
   const employeeList = employeesPage?.content || [];
+
+  const filteredInterviewers = employeeList.filter(emp => {
+    const matchesSearch = emp.fullName.toLowerCase().includes(interviewerSearch.toLowerCase()) ||
+                          emp.employeeCode.toLowerCase().includes(interviewerSearch.toLowerCase()) ||
+                          (emp.positionName || "").toLowerCase().includes(interviewerSearch.toLowerCase());
+    return matchesSearch;
+  });
 
   // Mutations
   const createJobMutation = useMutation({
@@ -335,6 +349,13 @@ const RecruitmentPage: React.FC = () => {
 
   const openScheduleInterviewModal = (appId: number) => {
     setInterviewAppId(appId);
+    setInterviewRound(1);
+    setInterviewDate("");
+    setInterviewLocation("");
+    setInterviewUrl("");
+    setSelectedInterviewerIds([]);
+    setInterviewerSearch("");
+    setIsSelectInterviewersOpen(false);
     setIsScheduleInterviewOpen(true);
   };
 
@@ -361,6 +382,44 @@ const RecruitmentPage: React.FC = () => {
     } else {
       setSelectedInterviewerIds([...selectedInterviewerIds, empId]);
     }
+  };
+
+  const handleDragStart = (e: React.DragEvent, appId: number, currentStage: string) => {
+    if (!isRecruiter) return;
+    setDraggedAppId(appId);
+    setDraggedAppSourceStage(currentStage);
+    e.dataTransfer.setData("text/plain", String(appId));
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDragEnter = (e: React.DragEvent, stageKey: string) => {
+    e.preventDefault();
+    if (!isRecruiter) return;
+    setActiveDropStage(stageKey);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, targetStageKey: string) => {
+    e.preventDefault();
+    setActiveDropStage(null);
+    if (!isRecruiter) return;
+    
+    const appId = Number(e.dataTransfer.getData("text/plain")) || draggedAppId;
+    const sourceStage = draggedAppSourceStage;
+    
+    if (appId && sourceStage && sourceStage !== targetStageKey) {
+      openChangeStageModal(appId, sourceStage, targetStageKey);
+    }
+    
+    setDraggedAppId(null);
+    setDraggedAppSourceStage("");
   };
 
   return (
@@ -424,7 +483,18 @@ const RecruitmentPage: React.FC = () => {
               {KANBAN_STAGES.map(stage => {
                 const stageApps = applications.filter(a => a.stage === stage.key);
                 return (
-                  <div key={stage.key} className={`border-t-4 ${stage.color} border border-border rounded-lg p-3 w-[280px] shrink-0 space-y-4`}>
+                  <div
+                    key={stage.key}
+                    onDragOver={handleDragOver}
+                    onDragEnter={(e) => handleDragEnter(e, stage.key)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, stage.key)}
+                    className={`border-t-4 ${stage.color} border ${
+                      activeDropStage === stage.key
+                        ? "border-purple-500 bg-purple-500/10 ring-2 ring-purple-500/20"
+                        : "border-border"
+                    } rounded-lg p-3 w-[280px] shrink-0 space-y-4 transition-all duration-200`}
+                  >
                     <div className="flex justify-between items-center border-b border-border pb-2">
                       <span className="font-semibold text-foreground text-sm">{stage.label}</span>
                       <Badge className="bg-muted text-muted-foreground font-bold">{stageApps.length}</Badge>
@@ -435,7 +505,18 @@ const RecruitmentPage: React.FC = () => {
                         <div className="text-center py-6 text-muted-foreground text-xs italic">Không có hồ sơ</div>
                       ) : (
                         stageApps.map(app => (
-                          <Card key={app.id} className="bg-card border-border hover:border-foreground/30 transition text-foreground">
+                          <Card
+                            key={app.id}
+                            draggable={isRecruiter}
+                            onDragStart={(e) => handleDragStart(e, app.id, app.stage)}
+                            onDragEnd={() => {
+                              setActiveDropStage(null);
+                              setDraggedAppId(null);
+                            }}
+                            className={`bg-card border-border hover:border-foreground/30 transition text-foreground cursor-grab active:cursor-grabbing ${
+                              draggedAppId === app.id ? "opacity-40 border-purple-500 border-dashed" : ""
+                            }`}
+                          >
                             <CardContent className="p-3 space-y-2 text-xs">
                               <div className="font-bold text-sm text-foreground/90 hover:text-foreground cursor-pointer" onClick={() => openAppDetailModal(app.id)}>
                                 {app.candidateName}
@@ -466,7 +547,7 @@ const RecruitmentPage: React.FC = () => {
                                 )}
                               </div>
 
-                              {stage.key === "SCREENING" && isRecruiter && (
+                              {(stage.key === "SCREENING" || stage.key === "INTERVIEW") && isRecruiter && (
                                 <Button size="sm" onClick={() => openScheduleInterviewModal(app.id)} className="w-full mt-2 h-7 bg-purple-600 hover:bg-purple-700 text-white text-[10px]">
                                   <Calendar className="h-3 w-3 mr-1" /> Lên lịch PV
                                 </Button>
@@ -846,7 +927,7 @@ const RecruitmentPage: React.FC = () => {
                   type="datetime-local"
                   value={interviewDate}
                   onChange={(e) => setInterviewDate(e.target.value)}
-                  className="[color-scheme:dark] dark:[color-scheme:dark]"
+                  className="dark:[color-scheme:dark]"
                 />
               </div>
               <div className="space-y-2">
@@ -880,24 +961,46 @@ const RecruitmentPage: React.FC = () => {
             </div>
 
             {/* Phân công người phỏng vấn */}
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold text-foreground/80">Phân công Người phỏng vấn (Interviewers)</Label>
-              <div className="bg-muted/10 border border-border rounded-lg p-3 max-h-[150px] overflow-y-auto space-y-2">
-                {employeeList.map(emp => (
-                  <div key={emp.id} className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id={`emp-${emp.id}`}
-                      checked={selectedInterviewerIds.includes(String(emp.id))}
-                      onChange={() => handleInterviewerSelect(String(emp.id))}
-                      className="rounded border-border bg-background text-primary"
-                    />
-                    <label htmlFor={`emp-${emp.id}`} className="text-xs text-foreground cursor-pointer">
-                      {emp.fullName} ({emp.employeeCode} - {emp.positionName || "Chưa gán vị trí"})
-                    </label>
-                  </div>
-                ))}
+            <div className="space-y-2.5">
+              <div className="flex justify-between items-center">
+                <Label className="text-sm font-semibold text-foreground/80">Người phỏng vấn (Interviewers)</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsSelectInterviewersOpen(true)}
+                  className="h-8 border-purple-500/30 text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-950/20"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Chọn người phỏng vấn
+                </Button>
               </div>
+
+              {/* Danh sách người phỏng vấn đã chọn */}
+              {selectedInterviewerIds.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 p-3 bg-purple-500/5 border border-dashed border-purple-500/20 rounded-lg max-h-[120px] overflow-y-auto">
+                  {selectedInterviewerIds.map(idStr => {
+                    const emp = employeeList.find(e => String(e.id) === idStr);
+                    if (!emp) return null;
+                    return (
+                      <Badge key={idStr} variant="secondary" className="flex items-center gap-1 text-[10px] bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 pr-1 py-0.5">
+                        {emp.fullName}
+                        <button
+                          type="button"
+                          onClick={() => handleInterviewerSelect(idStr)}
+                          className="hover:bg-purple-500/20 rounded-full p-0.5 ml-0.5 text-purple-600 dark:text-purple-400 font-bold"
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-4 border border-dashed border-border rounded-lg text-xs text-muted-foreground italic">
+                  Chưa chọn người phỏng vấn nào. Vui lòng bấm nút chọn.
+                </div>
+              )}
+              
               <p className="text-[10px] text-muted-foreground italic">
                 * Tự động gửi email lịch phỏng vấn và hướng dẫn nhận xét cho người phỏng vấn đã được chọn.
               </p>
@@ -913,6 +1016,74 @@ const RecruitmentPage: React.FC = () => {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG 3.5: CHỌN NGƯỜI PHỎNG VẤN */}
+      <Dialog open={isSelectInterviewersOpen} onOpenChange={setIsSelectInterviewersOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Chọn Người Phỏng Vấn</DialogTitle>
+            <DialogDescription>
+              Tìm kiếm và chọn các Trưởng phòng, Giám đốc hoặc nhân viên khác tham gia phỏng vấn.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Thanh công cụ tìm kiếm */}
+            <div className="relative w-full">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Tìm theo tên, mã NV, chức vụ..."
+                value={interviewerSearch}
+                onChange={(e) => setInterviewerSearch(e.target.value)}
+                className="pl-8 h-9 text-xs w-full"
+              />
+            </div>
+
+            {/* Hiển thị số lượng đã chọn */}
+            <div className="flex justify-between items-center text-xs text-muted-foreground">
+              <span>Tìm thấy {filteredInterviewers.length} nhân viên</span>
+              <span className="font-semibold text-purple-600">Đã chọn: {selectedInterviewerIds.length} người</span>
+            </div>
+
+            {/* Danh sách checkbox kết quả lọc */}
+            <div className="bg-muted/10 border border-border rounded-lg p-3 max-h-[250px] overflow-y-auto space-y-2">
+              {filteredInterviewers.length === 0 ? (
+                <div className="text-center py-8 text-xs text-muted-foreground italic">
+                  Không tìm thấy nhân viên phù hợp
+                </div>
+              ) : (
+                filteredInterviewers.map(emp => {
+                  const empIdStr = String(emp.id);
+                  const isChecked = selectedInterviewerIds.includes(empIdStr);
+                  return (
+                    <div key={emp.id} className="flex items-center gap-2 py-1 hover:bg-muted/5 rounded px-1">
+                      <input
+                        type="checkbox"
+                        id={`select-emp-${emp.id}`}
+                        checked={isChecked}
+                        onChange={() => handleInterviewerSelect(empIdStr)}
+                        className="rounded border-border bg-background text-purple-600 focus:ring-purple-500 h-4 w-4"
+                      />
+                      <label htmlFor={`select-emp-${emp.id}`} className="text-xs text-foreground cursor-pointer flex-1 flex justify-between items-center">
+                        <span className="font-medium text-foreground/90">{emp.fullName} ({emp.employeeCode})</span>
+                        <span className="text-[11px] text-purple-600 dark:text-purple-400 font-medium">
+                          {emp.positionName || "Chưa gán vị trí"}
+                        </span>
+                      </label>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2 border-t border-border">
+            <Button type="button" className="bg-primary text-white w-full" onClick={() => setIsSelectInterviewersOpen(false)}>
+              Xác nhận ({selectedInterviewerIds.length} đã chọn)
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
