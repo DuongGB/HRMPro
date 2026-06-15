@@ -13,6 +13,7 @@ import LoginPage from "./modules/auth/pages/LoginPage";
 import DashboardPage from "./modules/dashboard/pages/DashboardPage";
 import ChangePasswordPage from "./modules/auth/pages/ChangePasswordPage";
 import UserManagementPage from "./modules/users/pages/UserManagementPage";
+import SystemAutomationPage from "./modules/users/pages/SystemAutomationPage";
 import UnauthorizedPage from "./components/common/UnauthorizedPage";
 import NotFoundPage from "./components/common/NotFoundPage";
 import OrgChartPage from "./modules/organization/pages/OrgChartPage";
@@ -64,6 +65,16 @@ const App: React.FC = () => {
                   element={
                     <RoleProtectedRoute allowedRoles={["SUPER_ADMIN"]}>
                       <UserManagementPage />
+                    </RoleProtectedRoute>
+                  }
+                />
+
+                {/* Router Tự động hóa hệ thống (Super Admin, HR Admin) */}
+                <Route
+                  path="automation"
+                  element={
+                    <RoleProtectedRoute allowedRoles={["SUPER_ADMIN", "HR_ADMIN"]}>
+                      <SystemAutomationPage />
                     </RoleProtectedRoute>
                   }
                 />

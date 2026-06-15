@@ -17,6 +17,7 @@ import {
   Unlock,
   LogOut,
   Settings,
+  RefreshCw,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -126,6 +127,15 @@ const SidebarLayout: React.FC = () => {
       key: "/users",
       icon: <Settings size={20} />,
       label: "Quản lý tài khoản",
+    });
+  }
+
+  // 9. Tự động hóa hệ thống (Dành cho SUPER_ADMIN và HR_ADMIN)
+  if (roles.some(r => ["SUPER_ADMIN", "HR_ADMIN"].includes(r))) {
+    menuItems.push({
+      key: "/automation",
+      icon: <RefreshCw size={20} />,
+      label: "Tự động hóa",
     });
   }
 
