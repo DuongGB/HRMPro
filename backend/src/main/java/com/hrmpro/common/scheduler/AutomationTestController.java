@@ -10,9 +10,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/test/automation")
+@RequestMapping("/api/v1/automation")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')") // Chỉ cho phép Admin kích hoạt thủ công các tiến trình tự động hóa
+@PreAuthorize("hasRole('SUPER_ADMIN')")
 public class AutomationTestController {
 
     private final HrmAutomationScheduler hrmAutomationScheduler;

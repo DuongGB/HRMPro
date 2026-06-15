@@ -40,6 +40,56 @@ public class HrmAutomationScheduler {
     private final EmailService emailService;
 
     /**
+     * Hàm sinh HTML Template Email dùng chung, đảm bảo tính thẩm mỹ, nhất quán và responsive
+     */
+    private String buildEmailTemplate(String fullName, String messageContent, String extraSection, String senderName) {
+        return "<!DOCTYPE html>\n" +
+                "<html>\n" +
+                "<head>\n" +
+                "    <meta charset=\"utf-8\">\n" +
+                "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" +
+                "    <style>\n" +
+                "        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f4f7f9; color: #333333; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }\n" +
+                "        .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }\n" +
+                "        .header { background: linear-gradient(135deg, #1e3a8a, #3b82f6); padding: 30px; text-align: center; color: #ffffff; }\n" +
+                "        .header h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px; }\n" +
+                "        .content { padding: 40px 30px; line-height: 1.6; font-size: 15px; }\n" +
+                "        .greeting { font-size: 17px; font-weight: 600; color: #1e293b; margin-bottom: 20px; }\n" +
+                "        .message { color: #475569; margin-bottom: 30px; }\n" +
+                "        .highlight-box { background-color: #f8fafc; border-left: 4px solid #3b82f6; padding: 15px; margin: 20px 0; border-radius: 0 4px 4px 0; font-size: 14px; }\n" +
+                "        .highlight-item { margin: 8px 0; color: #334155; }\n" +
+                "        .signature { border-top: 1px solid #e2e8f0; padding-top: 20px; color: #64748b; font-size: 14px; }\n" +
+                "        .footer { background-color: #f8fafc; padding: 20px 30px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #f1f5f9; }\n" +
+                "        .footer a { color: #3b82f6; text-decoration: none; }\n" +
+                "    </style>\n" +
+                "</head>\n" +
+                "<body>\n" +
+                "    <div class=\"container\">\n" +
+                "        <div class=\"header\">\n" +
+                "            <h1>HRMPro System</h1>\n" +
+                "        </div>\n" +
+                "        <div class=\"content\">\n" +
+                "            <div class=\"greeting\">Kính gửi Anh/Chị " + fullName + ",</div>\n" +
+                "            <div class=\"message\">\n" +
+                "                " + messageContent + "\n" +
+                "            </div>\n" +
+                "            " + (extraSection != null ? extraSection : "") + "\n" +
+                "            <div class=\"signature\">\n" +
+                "                Trân trọng,<br><br>\n" +
+                "                <strong>" + senderName + "</strong><br>\n" +
+                "                Bộ phận Nhân sự & Phát triển Tổ chức | HRMPro\n" +
+                "            </div>\n" +
+                "        </div>\n" +
+                "        <div class=\"footer\">\n" +
+                "            Đây là thư điện tử tự động được gửi từ hệ thống Quản trị Nhân sự HRMPro.<br>\n" +
+                "            Vui lòng không trả lời trực tiếp email này. Mọi thắc mắc xin liên hệ <a href=\"mailto:hr@hrmpro.com\">hr@hrmpro.com</a>.\n" +
+                "        </div>\n" +
+                "    </div>\n" +
+                "</body>\n" +
+                "</html>";
+    }
+
+    /**
      * Tác vụ 1: Chúc mừng sinh nhật & Kỷ niệm ngày làm việc
      * Chạy hàng ngày lúc 08:00 AM
      */
@@ -69,16 +119,13 @@ public class HrmAutomationScheduler {
                             .build();
                     notificationRepository.save(notification);
 
-                    // Gửi email
-                    String emailContent = String.format(
-                            "Thân gửi %s,\n\n" +
-                            "Thay mặt Ban Giám Đốc và toàn thể nhân viên HRMPro, xin chúc mừng sinh nhật bạn!\n" +
-                            "Chúc bạn bước sang tuổi mới có thật nhiều niềm vui, sức khỏe dồi dào, luôn tràn đầy năng lượng và gặt hái thêm nhiều thành công mới trong sự nghiệp tại công ty.\n\n" +
-                            "Trân trọng,\n" +
-                            "Bộ phận Nhân sự HRMPro",
-                            emp.getFullName()
-                    );
-                    emailService.sendEmail(emp.getEmail(), "Chúc Mừng Sinh Nhật - HRMPro", emailContent);
+                    // Thiết kế email chúc mừng sinh nhật trang trọng
+                    String messageContent = "Nhân cột mốc đón chào tuổi mới của Anh/Chị, thay mặt Ban Giám đốc và toàn thể đại gia đình HRMPro, chúng tôi xin gửi tới Anh/Chị lời chúc mừng chân thành và nồng nhiệt nhất.<br><br>" +
+                            "Cảm ơn Anh/Chị đã và đang dành trọn nhiệt huyết, cống hiến sức lực của mình vào sự phát triển chung của công ty. Sự hiện diện và nỗ lực bền bỉ của Anh/Chị là một phần vô cùng quý giá cấu thành nên thành công của doanh nghiệp chúng ta.<br><br>" +
+                            "Chúc Anh/Chị bước sang tuổi mới luôn tràn đầy năng lượng tích cực, dồi dào sức khỏe, hạnh phúc viên mãn bên gia đình và tiếp tục gặt hái thêm nhiều thành tựu rực rỡ hơn nữa trong sự nghiệp!";
+                    
+                    String htmlContent = buildEmailTemplate(emp.getFullName(), messageContent, null, "Ban Giám đốc & Phòng Nhân sự");
+                    emailService.sendHtmlEmail(emp.getEmail(), "[HRMPro] Thư Chúc Mừng Sinh Nhật - Anh/Chị " + emp.getFullName(), htmlContent);
                 } catch (Exception e) {
                     log.error("Lỗi khi xử lý chúc mừng sinh nhật cho nhân viên {}: {}", emp.getFullName(), e.getMessage());
                 }
@@ -109,17 +156,16 @@ public class HrmAutomationScheduler {
                             .build();
                     notificationRepository.save(notification);
 
-                    // Gửi email
-                    String emailContent = String.format(
-                            "Thân gửi %s,\n\n" +
-                            "Hôm nay đánh dấu tròn %d năm bạn đồng hành cùng đại gia đình HRMPro!\n" +
-                            "Công ty vô cùng trân trọng sự nỗ lực, cống hiến và những đóng góp bền bỉ của bạn trong suốt thời gian qua. Sự đồng hành của bạn chính là một trong những viên gạch vững chắc xây dựng nên thành công của chúng ta ngày hôm nay.\n" +
-                            "Chúc bạn luôn giữ vững ngọn lửa nhiệt huyết, gặt hái được nhiều cột mốc ý nghĩa hơn nữa cùng công ty.\n\n" +
-                            "Trân trọng,\n" +
-                            "Ban Giám Đốc HRMPro",
-                            emp.getFullName(), yearsOfService
+                    // Thiết kế email kỷ niệm ngày vào làm
+                    String messageContent = String.format(
+                            "Hôm nay là một ngày đặc biệt đánh dấu cột mốc tròn <strong>%d năm</strong> Anh/Chị chính thức gia nhập và đồng hành cùng đại gia đình HRMPro.<br><br>" +
+                            "Ban Giám đốc cùng toàn thể đội ngũ công ty xin gửi lời tri ân sâu sắc nhất tới Anh/Chị vì tinh thần trách nhiệm, sự cống hiến bền bỉ và những nỗ lực không ngừng nghỉ trong suốt thời gian qua. Sự gắn bó lâu dài của Anh/Chị là niềm tự hào và là bệ đỡ vững chắc cho hành trình phát triển của doanh nghiệp.<br><br>" +
+                            "Chúc Anh/Chị luôn giữ vững ngọn lửa nhiệt huyết với nghề, có thật nhiều sức khỏe, niềm vui và tiếp tục cùng chúng tôi kiến tạo thêm nhiều cột mốc vinh quang mới trong tương lai!",
+                            yearsOfService
                     );
-                    emailService.sendEmail(emp.getEmail(), "Chúc Mừng Kỷ Niệm Ngày Làm Việc - HRMPro", emailContent);
+                    
+                    String htmlContent = buildEmailTemplate(emp.getFullName(), messageContent, null, "Ban Giám đốc HRMPro");
+                    emailService.sendHtmlEmail(emp.getEmail(), String.format("[HRMPro] Thư Chúc Mừng Kỷ Niệm %d Năm Đồng Hành Cùng Doanh Nghiệp", yearsOfService), htmlContent);
                 } catch (Exception e) {
                     log.error("Lỗi khi xử lý kỷ niệm thâm niên cho nhân viên {}: {}", emp.getFullName(), e.getMessage());
                 }
@@ -171,6 +217,7 @@ public class HrmAutomationScheduler {
                 if (emp == null) continue;
                 
                 long daysRemaining = Period.between(today, contract.getEndDate()).getDays();
+                LocalDate warningDateLimit = contract.getEndDate().minusDays(5); // Cần xử lý trước ngày hết hạn 5 ngày
                 try {
                     // 1. Gửi thông báo & email cho Nhân viên
                     Notification empNotification = Notification.builder()
@@ -185,15 +232,22 @@ public class HrmAutomationScheduler {
                             .build();
                     notificationRepository.save(empNotification);
 
-                    String empEmailContent = String.format(
-                            "Thân gửi %s,\n\n" +
-                            "Hệ thống HRMPro xin thông báo hợp đồng lao động số %s của bạn (loại: %s) sẽ hết hạn vào ngày %s (còn lại %d ngày).\n" +
-                            "Vui lòng liên hệ phòng Nhân sự để được hướng dẫn các thủ tục tiếp theo liên quan đến việc tái ký hợp đồng hoặc bàn giao công việc.\n\n" +
-                            "Trân trọng,\n" +
-                            "Bộ phận Nhân sự HRMPro",
-                            emp.getFullName(), contract.getContractNumber(), contract.getContractType(), contract.getEndDate(), daysRemaining
+                    String empMessage = "Bộ phận Nhân sự HRMPro xin trân trọng thông báo hợp đồng lao động hiện tại của Anh/Chị chuẩn bị hết thời hạn hiệu lực. Kính đề nghị Anh/Chị rà soát lại chi tiết thông tin hợp đồng cụ thể dưới đây:";
+                    
+                    String empExtra = String.format(
+                            "<div class=\"highlight-box\">\n" +
+                            "    <div class=\"highlight-item\"><strong>Mã nhân viên:</strong> %s</div>\n" +
+                            "    <div class=\"highlight-item\"><strong>Số hợp đồng:</strong> %s</div>\n" +
+                            "    <div class=\"highlight-item\"><strong>Loại hợp đồng:</strong> %s</div>\n" +
+                            "    <div class=\"highlight-item\"><strong>Ngày hết hạn:</strong> %s</div>\n" +
+                            "    <div class=\"highlight-item\"><strong>Thời gian còn lại:</strong> <span style=\"color: #ef4444; font-weight: bold;\">%d ngày</span></div>\n" +
+                            "</div>\n" +
+                            "<p>Để đảm bảo quyền lợi cá nhân và duy trì hoạt động nghiệp vụ liên tục, kính đề nghị Anh/Chị sắp xếp thời gian liên hệ trực tiếp với Phòng Nhân sự trước ngày <strong>%s</strong> để thực hiện thủ tục đánh giá hiệu quả công việc và trao đổi về phương án tái ký hợp đồng lao động mới hoặc tiến hành các thủ tục liên quan theo quy định.</p>",
+                            emp.getEmployeeCode(), contract.getContractNumber(), contract.getContractType(), contract.getEndDate(), daysRemaining, warningDateLimit
                     );
-                    emailService.sendEmail(emp.getEmail(), "Cảnh Báo Hết Hạn Hợp Đồng Lao Động - HRMPro", empEmailContent);
+
+                    String empHtml = buildEmailTemplate(emp.getFullName(), empMessage, empExtra, "Phòng Nhân sự");
+                    emailService.sendHtmlEmail(emp.getEmail(), "[HRMPro] Thông Báo Về Việc Hết Hạn Hợp Đồng Lao Động", empHtml);
 
                     // 2. Gửi thông báo cho Quản lý trực tiếp (nếu có)
                     Employee manager = emp.getManager();
@@ -210,18 +264,23 @@ public class HrmAutomationScheduler {
                                 .build();
                         notificationRepository.save(managerNotification);
 
-                        String managerEmailContent = String.format(
-                                "Thân gửi Quản lý %s,\n\n" +
-                                "Hệ thống HRMPro xin thông báo hợp đồng lao động của nhân viên cấp dưới trực tiếp của bạn:\n" +
-                                "- Nhân viên: %s (Mã NV: %s)\n" +
-                                "- Hợp đồng số: %s\n" +
-                                "- Ngày hết hạn: %s (còn lại %d ngày)\n\n" +
-                                "Vui lòng làm việc với nhân viên và bộ phận Nhân sự về kế hoạch tái ký hợp đồng hoặc bàn giao nhân sự.\n\n" +
-                                "Trân trọng,\n" +
-                                "Hệ thống HRMPro",
-                                manager.getFullName(), emp.getFullName(), emp.getEmployeeCode(), contract.getContractNumber(), contract.getEndDate(), daysRemaining
+                        String managerMessage = String.format(
+                                "Bộ phận Nhân sự xin thông báo đến Anh/Chị thông tin về việc hợp đồng lao động của nhân viên trực thuộc quyền quản lý của Anh/Chị chuẩn bị hết thời hạn hiệu lực. Chi tiết nhân sự cụ thể như sau:"
                         );
-                        emailService.sendEmail(manager.getEmail(), "Cảnh Báo Hết Hạn Hợp Đồng Nhân Viên Cấp Dưới - HRMPro", managerEmailContent);
+
+                        String managerExtra = String.format(
+                                "<div class=\"highlight-box\">\n" +
+                                "    <div class=\"highlight-item\"><strong>Họ và tên nhân viên:</strong> %s</div>\n" +
+                                "    <div class=\"highlight-item\"><strong>Mã nhân viên:</strong> %s</div>\n" +
+                                "    <div class=\"highlight-item\"><strong>Số hợp đồng:</strong> %s</div>\n" +
+                                "    <div class=\"highlight-item\"><strong>Ngày hết hạn:</strong> %s (còn lại %d ngày)</div>\n" +
+                                "</div>\n" +
+                                "<p>Kính đề nghị Anh/Chị với vai trò Cấp quản lý trực tiếp sắp xếp thời gian trao đổi với nhân viên về định hướng công việc tiếp theo, đồng thời gửi phản hồi về ý kiến đánh giá nhân sự và đề xuất phương án xử lý (Tái ký/Không tái ký) cho Phòng Nhân sự trước ngày <strong>%s</strong> để bộ phận HR tiến hành các thủ tục theo quy chế.</p>",
+                                emp.getFullName(), emp.getEmployeeCode(), contract.getContractNumber(), contract.getEndDate(), daysRemaining, warningDateLimit
+                        );
+
+                        String managerHtml = buildEmailTemplate(manager.getFullName(), managerMessage, managerExtra, "Phòng Nhân sự");
+                        emailService.sendHtmlEmail(manager.getEmail(), "[HRMPro] Thông Báo Nhân Sự Thuộc Quyền Quản Lý Sắp Hết Hạn Hợp Đồng Lao Động", managerHtml);
                     }
                 } catch (Exception e) {
                     log.error("Lỗi khi xử lý cảnh báo hợp đồng cho nhân viên {}: {}", emp.getFullName(), e.getMessage());
