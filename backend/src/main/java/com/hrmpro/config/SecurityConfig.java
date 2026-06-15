@@ -1,5 +1,6 @@
 package com.hrmpro.config;
 
+import com.hrmpro.module.auth.filter.JwtAuthenticationEntryPoint;
 import com.hrmpro.module.auth.filter.JwtAuthenticationFilter;
 import com.hrmpro.module.auth.service.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final CustomUserDetailsService userDetailsService;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -38,6 +40,9 @@ public class SecurityConfig {
                 // Cho phép ứng viên nộp CV công khai
                 .requestMatchers("/api/v1/recruitment/jobs/*/applications").permitAll()
                 .anyRequest().authenticated()
+            )
+            .exceptionHandling(exception -> exception
+                .authenticationEntryPoint(jwtAuthenticationEntryPoint)
             )
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
