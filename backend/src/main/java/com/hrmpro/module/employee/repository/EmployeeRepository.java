@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -29,4 +30,12 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             @Param("status") String status,
             Pageable pageable
     );
+
+    @Query("SELECT e FROM Employee e WHERE e.status = 'ACTIVE' AND MONTH(e.dateOfBirth) = :month AND DAY(e.dateOfBirth) = :day")
+    List<Employee> findActiveEmployeesByBirthday(@Param("month") int month, @Param("day") int day);
+
+    @Query("SELECT e FROM Employee e WHERE e.status = 'ACTIVE' AND MONTH(e.hireDate) = :month AND DAY(e.hireDate) = :day")
+    List<Employee> findActiveEmployeesByWorkAnniversary(@Param("month") int month, @Param("day") int day);
+
+    List<Employee> findAllByStatus(String status);
 }
