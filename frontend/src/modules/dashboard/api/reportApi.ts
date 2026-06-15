@@ -40,9 +40,32 @@ export interface DashboardReportResponse {
   turnoverRate: number;
 }
 
+export interface EmployeeDashboardResponse {
+  totalLeaveDays: number;
+  usedLeaveDays: number;
+  remainingLeaveDays: number;
+  currentMonthWorkDays: number;
+  currentMonthLateCount: number;
+  currentMonthAbsentCount: number;
+  standardWorkDays: number;
+  latestPayslip: {
+    id: number;
+    year: number;
+    month: number;
+    netSalary: number;
+    pdfUrl: string | null;
+  } | null;
+  pendingLeaveRequests: number;
+  pendingAttendanceAdjustments: number;
+}
+
 export const reportApi = {
   getDashboardReport: async (): Promise<DashboardReportResponse> => {
     const response = (await api.get("/dashboard/reports")) as any;
+    return response.data;
+  },
+  getEmployeeDashboard: async (): Promise<EmployeeDashboardResponse> => {
+    const response = (await api.get("/dashboard/employee")) as any;
     return response.data;
   },
 };

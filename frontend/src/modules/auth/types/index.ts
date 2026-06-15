@@ -6,6 +6,7 @@ export interface LoginRequest {
 export interface UserResponse {
   id: number;
   username: string;
+  fullName?: string;
   roles: string[];
   employeeId: number | null;
 }
