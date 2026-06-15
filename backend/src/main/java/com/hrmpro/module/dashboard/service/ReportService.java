@@ -1,7 +1,12 @@
 package com.hrmpro.module.dashboard.service;
 
+import com.hrmpro.module.attendance.entity.AttendanceSummary;
+import com.hrmpro.module.attendance.repository.AttendanceSummaryRepository;
 import com.hrmpro.module.dashboard.dto.DashboardReportDto;
+import com.hrmpro.module.dashboard.dto.EmployeeDashboardDto;
 import com.hrmpro.module.employee.repository.EmployeeRepository;
+import com.hrmpro.module.leave.repository.LeaveRequestRepository;
+import com.hrmpro.module.payroll.entity.Payslip;
 import com.hrmpro.module.payroll.repository.PayrollRunRepository;
 import com.hrmpro.module.payroll.repository.PayslipRepository;
 import com.hrmpro.module.recruitment.repository.ApplicationRepository;
@@ -15,6 +20,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +31,8 @@ public class ReportService {
     private final ApplicationRepository applicationRepository;
     private final PayslipRepository payslipRepository;
     private final PayrollRunRepository payrollRunRepository;
+    private final LeaveRequestRepository leaveRequestRepository;
+    private final AttendanceSummaryRepository attendanceSummaryRepository;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -140,6 +148,84 @@ public class ReportService {
             }
             builder.recruitmentSources(sourceList);
         }
+
+        return builder.build();
+    }
+
+    /**
+     * Lấy dashboard dữ liệu cho Employee
+     */
+    public EmployeeDashboardDto getEmployeeDashboard(Long employeeId) {
+        if (employeeId == null) {
+            return EmployeeDashboardDto.builder().build();
+        }
+
+        EmployeeDashboardDto.EmployeeDashboardDtoBuilder builder = EmployeeDashboardDto.builder();
+
+        // 1. Leave Balance Summary (tổng hợp tất cả các loại phép)
+        List<Object[]> leaveBalances = entityManager.createQuery(
+                "SELECT COALESCE(SUM(lb.totalDays), 0), COALESCE(SUM(lb.usedDays), 0), COALESCE(SUM(lb.remainingDays), 0) " +
+                "FROM LeaveBalance lb WHERE lb.employee.id = :employeeId AND lb.year = :year", Object[].class)
+                .setParameter("employeeId", employeeId)
+                .setParameter("year", LocalDate.now().getYear())
+                .getResultList();
+
+        if (!leaveBalances.isEmpty()) {
+            Object[] lb = leaveBalances.get(0);
+            builder.totalLeaveDays((BigDecimal) lb[0]);
+            builder.usedLeaveDays((BigDecimal) lb[1]);
+            builder.remainingLeaveDays((BigDecimal) lb[2]);
+        } else {
+            builder.totalLeaveDays(BigDecimal.ZERO);
+            builder.usedLeaveDays(BigDecimal.ZERO);
+            builder.remainingLeaveDays(BigDecimal.ZERO);
+        }
+
+        // 2. Attendance Summary tháng hiện tại
+        int currentYear = LocalDate.now().getYear();
+        int currentMonth = LocalDate.now().getMonthValue();
+
+        Optional<AttendanceSummary> attendanceSummary = attendanceSummaryRepository
+                .findByEmployeeIdAndYearAndMonth(employeeId, currentYear, currentMonth);
+
+        if (attendanceSummary.isPresent()) {
+            AttendanceSummary summary = attendanceSummary.get();
+            builder.currentMonthWorkDays(summary.getActualDays() != null ? summary.getActualDays().intValue() : 0);
+            builder.currentMonthLateCount(summary.getLateCount() != null ? summary.getLateCount().intValue() : 0);
+            builder.currentMonthAbsentCount(summary.getAbsentCount() != null ? summary.getAbsentCount().intValue() : 0);
+            builder.standardWorkDays(summary.getWorkDays() != null ? summary.getWorkDays().intValue() : 22);
+        } else {
+            builder.currentMonthWorkDays(0);
+            builder.currentMonthLateCount(0);
+            builder.currentMonthAbsentCount(0);
+            builder.standardWorkDays(22);
+        }
+
+        // 3. Latest Published Payslip
+        List<Payslip> payslips = payslipRepository.findPublishedPayslipsByEmployeeId(employeeId);
+        if (!payslips.isEmpty()) {
+            Payslip latestPayslip = payslips.get(0);
+            builder.latestPayslip(EmployeeDashboardDto.LatestPayslipSummary.builder()
+                    .id(latestPayslip.getId())
+                    .year(latestPayslip.getPayrollRun().getYear())
+                    .month(latestPayslip.getPayrollRun().getMonth())
+                    .netSalary(latestPayslip.getNetSalary())
+                    .pdfUrl(latestPayslip.getPdfUrl())
+                    .build());
+        }
+
+        // 4. Pending Requests Count
+        Long pendingLeaveCount = entityManager.createQuery(
+                "SELECT COUNT(lr) FROM LeaveRequest lr WHERE lr.employee.id = :employeeId AND lr.status = 'PENDING'", Long.class)
+                .setParameter("employeeId", employeeId)
+                .getSingleResult();
+        builder.pendingLeaveRequests(pendingLeaveCount);
+
+        Long pendingAttendanceCount = entityManager.createQuery(
+                "SELECT COUNT(al) FROM AttendanceLog al WHERE al.employee.id = :employeeId AND al.status = 'PENDING_ADJUST'", Long.class)
+                .setParameter("employeeId", employeeId)
+                .getSingleResult();
+        builder.pendingAttendanceAdjustments(pendingAttendanceCount);
 
         return builder.build();
     }

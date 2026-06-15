@@ -3,6 +3,7 @@ package com.hrmpro.module.dashboard.controller;
 import com.hrmpro.common.dto.ApiResponse;
 import com.hrmpro.module.auth.entity.UserPrincipal;
 import com.hrmpro.module.dashboard.dto.DashboardReportDto;
+import com.hrmpro.module.dashboard.dto.EmployeeDashboardDto;
 import com.hrmpro.module.dashboard.service.ReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -33,5 +34,17 @@ public class ReportController {
         
         DashboardReportDto report = reportService.getDashboardReport(principal.getEmployeeId(), roles);
         return ResponseEntity.ok(ApiResponse.ok(report));
+    }
+
+    @GetMapping("/employee")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<EmployeeDashboardDto>> getEmployeeDashboard(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        if (principal.getEmployeeId() == null) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Tài khoản này không liên kết với nhân viên"));
+        }
+
+        EmployeeDashboardDto dashboard = reportService.getEmployeeDashboard(principal.getEmployeeId());
+        return ResponseEntity.ok(ApiResponse.ok("Lấy dashboard nhân viên thành công", dashboard));
     }
 }
