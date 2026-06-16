@@ -6,6 +6,8 @@ import com.hrmpro.module.recruitment.enums.InterviewType;
 import com.hrmpro.module.recruitment.enums.InterviewResult;
 import com.hrmpro.module.recruitment.enums.InterviewApprovalStatus;
 import com.hrmpro.module.employee.repository.EmployeeRepository;
+import com.hrmpro.module.employee.service.NotificationService;
+import com.hrmpro.module.notification.service.RealtimeNotificationService;
 import com.hrmpro.module.organization.entity.Department;
 import com.hrmpro.module.organization.entity.Position;
 import com.hrmpro.module.recruitment.entity.Application;
@@ -36,6 +38,8 @@ public class RecruitmentService {
     private final InterviewRepository interviewRepository;
     private final EmployeeRepository employeeRepository;
     private final EmailService emailService;
+    private final NotificationService notificationService;
+    private final RealtimeNotificationService realtimeNotificationService;
 
     // ─── JOB POSTINGS LOGIC ───────────────────────────────────────────────────────
 
@@ -99,9 +103,20 @@ public class RecruitmentService {
     public Application updateApplicationStage(Long id, String stage, String rejectedReason) {
         Application app = getApplication(id);
         app.setStage(stage);
-        app.setRejectedReason(rejectedReason);
+        if ("REJECTED".equals(stage)) {
+            app.setRejectedReason(rejectedReason);
+        }
         app.setUpdatedAt(LocalDateTime.now());
-        return applicationRepository.save(app);
+        Application saved = applicationRepository.save(app);
+
+        // Phát tín hiệu Kanban qua WebSocket
+        java.util.Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("id", saved.getId());
+        payload.put("jobId", saved.getJobPosting().getId());
+        payload.put("stage", saved.getStage());
+        realtimeNotificationService.broadcastKanbanUpdate(payload);
+
+        return saved;
     }
 
     // ─── INTERVIEWS LOGIC ─────────────────────────────────────────────────────────
@@ -126,17 +141,74 @@ public class RecruitmentService {
         interview.setApprovalStatus(InterviewApprovalStatus.PENDING);
         interview.setCreatedAt(LocalDateTime.now());
 
-        interview = interviewRepository.save(interview);
+        Interview saved = interviewRepository.save(interview);
+
+        // Tìm manager của recruiter để gửi thông báo duyệt
+        Employee recruiter = app.getJobPosting().getCreatedBy();
+        if (recruiter != null) {
+            if (recruiter.getManager() != null) {
+                notificationService.createNotification(
+                        recruiter.getManager(),
+                        "INTERVIEW_PENDING",
+                        "Yêu cầu duyệt lịch phỏng vấn mới",
+                        "Cần duyệt lịch phỏng vấn vòng " + interview.getRound() + " cho ứng viên " + app.getCandidateName(),
+                        "/recruitment"
+                );
+            } else {
+                // Broadcast nếu không tìm thấy manager
+                realtimeNotificationService.broadcastNotification(
+                        com.hrmpro.module.notification.dto.NotificationResponse.builder()
+                                .title("Yêu cầu duyệt lịch phỏng vấn mới")
+                                .message("Cần duyệt lịch phỏng vấn vòng " + interview.getRound() + " cho ứng viên " + app.getCandidateName())
+                                .type("INTERVIEW_PENDING")
+                                .build()
+                );
+            }
+            // Thông báo lại cho chính người tạo để có trải nghiệm realtime
+            notificationService.createNotification(
+                    recruiter,
+                    "INTERVIEW_CREATED",
+                    "Đã lên lịch phỏng vấn",
+                    "Bạn đã tạo lịch phỏng vấn vòng " + interview.getRound() + " cho ứng viên " + app.getCandidateName() + ". Vui lòng chờ duyệt.",
+                    "/recruitment"
+            );
+        }
 
         // Gửi email thông báo cho Manager để duyệt lịch
         sendPendingApprovalEmail(interview);
 
-        return interview;
+        return saved;
     }
 
     @Transactional
-    public Interview approveInterviewSchedule(Long id, InterviewApprovalStatus status, String feedback) {
+    public Interview approveInterviewSchedule(Long id, InterviewApprovalStatus status, String feedback, Long approverEmployeeId, boolean isSystemAdmin) {
         Interview interview = getInterview(id);
+
+        // Kiểm tra quyền phê duyệt lịch phỏng vấn: Phải là Admin hoặc là một trong các Interviewers
+        if (!isSystemAdmin) {
+            String interviewersStr = interview.getInterviewers();
+            if (interviewersStr == null || interviewersStr.trim().isEmpty()) {
+                throw new RuntimeException("Lịch phỏng vấn chưa được phân công người phỏng vấn.");
+            }
+
+            String cleanInterviewers = interviewersStr
+                    .replace("[", "")
+                    .replace("]", "")
+                    .replace("\"", "")
+                    .replace("'", "")
+                    .trim();
+
+            List<Long> interviewerIds = Arrays.stream(cleanInterviewers.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty() && s.matches("\\d+"))
+                    .map(Long::parseLong)
+                    .collect(Collectors.toList());
+
+            if (!interviewerIds.contains(approverEmployeeId)) {
+                throw new RuntimeException("Bạn không được phân công phỏng vấn lịch này, không có quyền phê duyệt.");
+            }
+        }
+
         interview.setApprovalStatus(status);
         interview.setApprovalFeedback(feedback);
         interview.setApprovedAt(LocalDateTime.now());
@@ -148,8 +220,40 @@ public class RecruitmentService {
             // Thông báo cho Recruiter biết lịch bị từ chối
             sendRejectedNotificationToRecruiter(interview);
         }
+        
+        Interview saved = interviewRepository.save(interview);
 
-        return interviewRepository.save(interview);
+        // Phát tín hiệu realtime WebSocket cho Client
+        java.util.Map<String, Object> wsPayload = new java.util.HashMap<>();
+        wsPayload.put("id", saved.getId());
+        wsPayload.put("approvalStatus", saved.getApprovalStatus().toString());
+        realtimeNotificationService.broadcastInterviewApprovalUpdate(wsPayload);
+
+        // Thông báo lại cho Recruiter
+        Employee recruiter = interview.getApplication().getJobPosting().getCreatedBy();
+        if (recruiter != null) {
+            notificationService.createNotification(
+                    recruiter,
+                    "INTERVIEW_APPROVAL_RESULT",
+                    "Kết quả duyệt lịch phỏng vấn",
+                    "Lịch phỏng vấn ứng viên " + interview.getApplication().getCandidateName() + 
+                    " đã bị " + (status == InterviewApprovalStatus.APPROVED ? "duyệt" : "từ chối") + ".\n" +
+                    (feedback != null ? "Phản hồi: " + feedback : ""),
+                    "/recruitment"
+            );
+        } else {
+            // Broadcast nếu không có recruiter
+            realtimeNotificationService.broadcastNotification(
+                    com.hrmpro.module.notification.dto.NotificationResponse.builder()
+                            .title("Kết quả duyệt lịch phỏng vấn")
+                            .message("Lịch phỏng vấn ứng viên " + interview.getApplication().getCandidateName() + 
+                                     " đã bị " + (status == InterviewApprovalStatus.APPROVED ? "duyệt" : "từ chối") + ".")
+                            .type("INTERVIEW_APPROVAL_RESULT")
+                            .build()
+            );
+        }
+
+        return saved;
     }
 
     @Transactional
@@ -253,10 +357,23 @@ public class RecruitmentService {
 
         // 2. Gửi email cho những người phỏng vấn (Interviewers)
         if (interview.getInterviewers() != null && !interview.getInterviewers().trim().isEmpty()) {
-            List<Long> interviewerIds = Arrays.stream(interview.getInterviewers().split(","))
-                    .map(String::trim)
-                    .map(Long::parseLong)
-                    .collect(Collectors.toList());
+            List<Long> interviewerIds = new ArrayList<>();
+            try {
+                String rawInterviewers = interview.getInterviewers()
+                        .replace("[", "")
+                        .replace("]", "")
+                        .replace("\"", "")
+                        .replace("'", "")
+                        .trim();
+
+                interviewerIds = Arrays.stream(rawInterviewers.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty() && s.matches("\\d+"))
+                        .map(Long::parseLong)
+                        .collect(Collectors.toList());
+            } catch (Exception e) {
+                log.error("Lỗi khi parse danh sách ID người phỏng vấn từ chuỗi '{}': {}", interview.getInterviewers(), e.getMessage());
+            }
 
             for (Long empId : interviewerIds) {
                 employeeRepository.findById(empId).ifPresent(emp -> {
