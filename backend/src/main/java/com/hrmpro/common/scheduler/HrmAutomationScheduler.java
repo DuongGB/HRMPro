@@ -3,13 +3,12 @@ package com.hrmpro.common.scheduler;
 import com.hrmpro.common.service.EmailService;
 import com.hrmpro.module.employee.entity.Contract;
 import com.hrmpro.module.employee.entity.Employee;
-import com.hrmpro.module.employee.entity.Notification;
+import com.hrmpro.module.leave.entity.LeaveBalance;
 import com.hrmpro.module.employee.repository.ContractRepository;
 import com.hrmpro.module.employee.repository.EmployeeRepository;
-import com.hrmpro.module.employee.repository.NotificationRepository;
-import com.hrmpro.module.leave.entity.LeaveBalance;
-import com.hrmpro.module.leave.entity.LeaveType;
 import com.hrmpro.module.leave.repository.LeaveBalanceRepository;
+import com.hrmpro.module.employee.service.NotificationService;
+import com.hrmpro.module.leave.entity.LeaveType;
 import com.hrmpro.module.leave.repository.LeaveTypeRepository;
 import com.hrmpro.module.recruitment.entity.JobPosting;
 import com.hrmpro.module.recruitment.repository.JobPostingRepository;
@@ -37,12 +36,12 @@ public class HrmAutomationScheduler {
     private static final BigDecimal MAX_ANNUAL_LEAVE_DAYS = new BigDecimal("16.0");
 
     private final EmployeeRepository employeeRepository;
-    private final NotificationRepository notificationRepository;
-    private final JobPostingRepository jobPostingRepository;
     private final ContractRepository contractRepository;
+    private final JobPostingRepository jobPostingRepository;
     private final LeaveBalanceRepository leaveBalanceRepository;
     private final LeaveTypeRepository leaveTypeRepository;
     private final EmailService emailService;
+    private final NotificationService notificationService;
 
     /**
      * Hàm sinh HTML Template Email dùng chung, đảm bảo tính thẩm mỹ, nhất quán và responsive
@@ -113,16 +112,7 @@ public class HrmAutomationScheduler {
             for (Employee emp : birthdayEmployees) {
                 try {
                     // Tạo thông báo hệ thống
-                    Notification notification = Notification.builder()
-                            .recipient(emp)
-                            .type("BIRTHDAY")
-                            .title("Chúc mừng sinh nhật!")
-                            .message("Chúc mừng sinh nhật " + emp.getFullName() + "! Chúc bạn tuổi mới nhiều sức khỏe, hạnh phúc và thành công trong công việc.")
-                            .isRead(false)
-                            .relatedUrl("/dashboard")
-                            .createdAt(LocalDateTime.now())
-                            .build();
-                    notificationRepository.save(notification);
+                    notificationService.createNotification(emp, "BIRTHDAY", "Chúc mừng sinh nhật!", "Chúc mừng sinh nhật " + emp.getFullName() + "! Chúc bạn tuổi mới nhiều sức khỏe, hạnh phúc và thành công trong công việc.", "/dashboard");
 
                     // Thiết kế email chúc mừng sinh nhật trang trọng
                     String messageContent = "Nhân cột mốc đón chào tuổi mới của Anh/Chị, thay mặt Ban Giám đốc và toàn thể đại gia đình HRMPro, chúng tôi xin gửi tới Anh/Chị lời chúc mừng chân thành và nồng nhiệt nhất.<br><br>" +
@@ -150,16 +140,7 @@ public class HrmAutomationScheduler {
                 }
                 try {
                     // Tạo thông báo hệ thống
-                    Notification notification = Notification.builder()
-                            .recipient(emp)
-                            .type("WORK_ANNIVERSARY")
-                            .title("Kỷ niệm ngày làm việc!")
-                            .message(String.format("Chúc mừng kỷ niệm %d năm đồng hành cùng công ty của %s! Cảm ơn những đóng góp to lớn của bạn.", yearsOfService, emp.getFullName()))
-                            .isRead(false)
-                            .relatedUrl("/dashboard")
-                            .createdAt(LocalDateTime.now())
-                            .build();
-                    notificationRepository.save(notification);
+                    notificationService.createNotification(emp, "WORK_ANNIVERSARY", "Kỷ niệm ngày làm việc!", String.format("Chúc mừng kỷ niệm %d năm đồng hành cùng công ty của %s! Cảm ơn những đóng góp to lớn của bạn.", yearsOfService, emp.getFullName()), "/dashboard");
 
                     // Thiết kế email kỷ niệm ngày vào làm
                     String messageContent = String.format(
@@ -225,17 +206,7 @@ public class HrmAutomationScheduler {
                 LocalDate warningDateLimit = contract.getEndDate().minusDays(5); // Cần xử lý trước ngày hết hạn 5 ngày
                 try {
                     // 1. Gửi thông báo & email cho Nhân viên
-                    Notification empNotification = Notification.builder()
-                            .recipient(emp)
-                            .type("CONTRACT_EXPIRING")
-                            .title("Hợp đồng lao động sắp hết hạn")
-                            .message(String.format("Hợp đồng lao động số %s của bạn sẽ hết hạn vào ngày %s (còn %d ngày). Vui lòng liên hệ phòng Nhân sự để làm thủ tục tái ký hoặc bàn giao.",
-                                    contract.getContractNumber(), contract.getEndDate(), daysRemaining))
-                            .isRead(false)
-                            .relatedUrl("/profile")
-                            .createdAt(LocalDateTime.now())
-                            .build();
-                    notificationRepository.save(empNotification);
+                    notificationService.createNotification(emp, "CONTRACT_EXPIRING", "Hợp đồng lao động sắp hết hạn", String.format("Hợp đồng lao động số %s của bạn sẽ hết hạn vào ngày %s (còn %d ngày). Vui lòng liên hệ phòng Nhân sự để làm thủ tục tái ký hoặc bàn giao.", contract.getContractNumber(), contract.getEndDate(), daysRemaining), "/profile");
 
                     String empMessage = "Bộ phận Nhân sự HRMPro xin trân trọng thông báo hợp đồng lao động hiện tại của Anh/Chị chuẩn bị hết thời hạn hiệu lực. Kính đề nghị Anh/Chị rà soát lại chi tiết thông tin hợp đồng cụ thể dưới đây:";
                     
@@ -257,17 +228,7 @@ public class HrmAutomationScheduler {
                     // 2. Gửi thông báo cho Quản lý trực tiếp (nếu có)
                     Employee manager = emp.getManager();
                     if (manager != null) {
-                        Notification managerNotification = Notification.builder()
-                                .recipient(manager)
-                                .type("CONTRACT_EXPIRING")
-                                .title("Hợp đồng của nhân viên sắp hết hạn")
-                                .message(String.format("Hợp đồng của nhân viên cấp dưới %s (Mã: %s) sẽ hết hạn vào ngày %s. Vui lòng thảo luận kế hoạch nhân sự tiếp theo.",
-                                        emp.getFullName(), emp.getEmployeeCode(), contract.getEndDate()))
-                                .isRead(false)
-                                .relatedUrl("/dashboard")
-                                .createdAt(LocalDateTime.now())
-                                .build();
-                        notificationRepository.save(managerNotification);
+                        notificationService.createNotification(manager, "CONTRACT_EXPIRING", "Hợp đồng của nhân viên sắp hết hạn", String.format("Hợp đồng của nhân viên cấp dưới %s (Mã: %s) sẽ hết hạn vào ngày %s. Vui lòng thảo luận kế hoạch nhân sự tiếp theo.", emp.getFullName(), emp.getEmployeeCode(), contract.getEndDate()), "/dashboard");
 
                         String managerMessage = String.format(
                                 "Bộ phận Nhân sự xin thông báo đến Anh/Chị thông tin về việc hợp đồng lao động của nhân viên trực thuộc quyền quản lý của Anh/Chị chuẩn bị hết thời hạn hiệu lực. Chi tiết nhân sự cụ thể như sau:"

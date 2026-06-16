@@ -12,6 +12,7 @@ import java.util.Set;
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
     boolean existsByUsername(String username);
+    Optional<User> findByEmployeeId(Long employeeId);
     boolean existsByEmployeeId(Long employeeId);
 
     @Query("SELECT u.employee.id FROM User u WHERE u.employee.id IS NOT NULL")

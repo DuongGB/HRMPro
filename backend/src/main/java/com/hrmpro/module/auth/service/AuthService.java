@@ -75,11 +75,16 @@ public class AuthService {
                 .collect(Collectors.toList());
 
         Long employeeId = user.getEmployee() != null ? user.getEmployee().getId() : null;
+        String employeeCode = user.getEmployee() != null ? user.getEmployee().getEmployeeCode() : null;
+        String employeeName = user.getEmployee() != null ? user.getEmployee().getFullName() : null;
+
         UserResponse userResponse = UserResponse.builder()
                 .id(user.getId())
                 .username(user.getUsername())
                 .roles(roles.stream().collect(Collectors.toSet()))
                 .employeeId(employeeId)
+                .employeeCode(employeeCode)
+                .employeeName(employeeName)
                 .isActive(user.getIsActive())
                 .createdAt(user.getCreatedAt())
                 .build();

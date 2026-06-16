@@ -39,6 +39,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
                 // Cho phép ứng viên nộp CV công khai
                 .requestMatchers("/api/v1/recruitment/jobs/*/applications").permitAll()
+                // Cho phép endpoint kết nối WebSocket
+                .requestMatchers("/ws/**").permitAll()
                 .anyRequest().authenticated()
             )
             .exceptionHandling(exception -> exception

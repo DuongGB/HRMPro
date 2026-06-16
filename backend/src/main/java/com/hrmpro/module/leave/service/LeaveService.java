@@ -7,6 +7,7 @@ import com.hrmpro.common.exception.ResourceNotFoundException;
 import com.hrmpro.common.service.MinioService;
 import com.hrmpro.module.employee.entity.Employee;
 import com.hrmpro.module.employee.repository.EmployeeRepository;
+import com.hrmpro.module.employee.service.NotificationService;
 import com.hrmpro.module.leave.dto.LeaveApprovalDto;
 import com.hrmpro.module.leave.dto.LeaveBalanceResponse;
 import com.hrmpro.module.leave.dto.LeaveRequestDto;
@@ -50,6 +51,7 @@ public class LeaveService {
     private final LeaveBalanceRepository leaveBalanceRepository;
     private final EmployeeRepository employeeRepository;
     private final MinioService minioService;
+    private final NotificationService notificationService;
 
     @Value("${app.minio.bucket.documents:hrmpro-documents}")
     private String documentBucket;
@@ -170,6 +172,22 @@ public class LeaveService {
 
         LeaveRequest saved = leaveRequestRepository.save(leaveRequest);
         log.info("Đã phê duyệt đơn nghỉ phép ID {} thành {}", id, approval.getStatus());
+
+        // Gửi thông báo
+        String actionStr = "APPROVED".equalsIgnoreCase(approval.getStatus()) ? "duyệt" : "từ chối";
+        String notifMessage = String.format("Đơn xin nghỉ phép từ %s đến %s của bạn đã bị %s.", 
+                leaveRequest.getStartDate(), leaveRequest.getEndDate(), actionStr);
+        if (approval.getManagerNote() != null && !approval.getManagerNote().isEmpty()) {
+            notifMessage += " Lời nhắn: " + approval.getManagerNote();
+        }
+        notificationService.createNotification(
+                leaveRequest.getEmployee(), 
+                "APPROVED".equalsIgnoreCase(approval.getStatus()) ? "LEAVE_APPROVED" : "LEAVE_REJECTED", 
+                "Kết quả đơn xin nghỉ phép", 
+                notifMessage, 
+                "/leaves"
+        );
+
         return convertToResponse(saved);
     }
 

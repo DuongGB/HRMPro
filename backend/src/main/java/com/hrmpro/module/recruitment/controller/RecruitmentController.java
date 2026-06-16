@@ -156,12 +156,15 @@ public class RecruitmentController {
     }
 
     @PutMapping("/interviews/{id}/approve")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HR_ADMIN', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HR_ADMIN', 'MANAGER', 'EMPLOYEE', 'RECRUITER')")
     public ResponseEntity<ApiResponse<InterviewDto>> approveInterviewSchedule(
             @PathVariable Long id,
             @RequestParam InterviewApprovalStatus status,
-            @RequestParam(required = false) String feedback) {
-        Interview updated = recruitmentService.approveInterviewSchedule(id, status, feedback);
+            @RequestParam(required = false) String feedback,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        boolean isSystemAdmin = principal.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN") || a.getAuthority().equals("ROLE_HR_ADMIN"));
+        Interview updated = recruitmentService.approveInterviewSchedule(id, status, feedback, principal.getEmployeeId(), isSystemAdmin);
         return ResponseEntity.ok(ApiResponse.ok(convertToDto(updated)));
     }
 
