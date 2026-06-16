@@ -151,6 +151,11 @@ const CalendarDayCell: React.FC<CalendarDayCellProps> = ({ date, isCurrentMonth,
   const weekend = isWeekend(date);
   const dayNum = date.getDate();
   
+  // Kiểm tra ngày trong tương lai (sau ngày hiện tại)
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const isFutureDay = date.getTime() > todayStart.getTime();
+  
   // Thống kê nhanh
   const onTimeCount = logs.filter(l => l.status === "ON_TIME").length;
   const lateCount = logs.filter(l => l.status === "LATE").length;
@@ -160,13 +165,16 @@ const CalendarDayCell: React.FC<CalendarDayCellProps> = ({ date, isCurrentMonth,
   
   return (
     <div
-      onClick={() => logs.length > 0 && onClickDay(date, logs)}
+      onClick={() => {
+        if (isFutureDay) return;
+        if (logs.length > 0) onClickDay(date, logs);
+      }}
       className={`
         min-h-[100px] p-1.5 border-b border-r border-border/40 transition-all duration-200 relative
-        ${!isCurrentMonth ? "bg-muted/20 opacity-50" : "bg-card hover:bg-accent/30"}
+        ${isFutureDay ? "bg-muted/10 opacity-30 cursor-not-allowed" : !isCurrentMonth ? "bg-muted/20 opacity-50" : "bg-card hover:bg-accent/30"}
         ${today ? "ring-2 ring-primary/40 ring-inset bg-primary/5" : ""}
-        ${weekend && isCurrentMonth ? "bg-muted/30" : ""}
-        ${logs.length > 0 ? "cursor-pointer group" : "cursor-default"}
+        ${weekend && isCurrentMonth && !isFutureDay ? "bg-muted/30" : ""}
+        ${logs.length > 0 && !isFutureDay ? "cursor-pointer group" : "cursor-default"}
       `}
     >
       {/* Số ngày */}
@@ -504,6 +512,12 @@ const AttendancePage: React.FC = () => {
     e.preventDefault();
     if (!adjustDate || !adjustNote) {
       toast.error("Vui lòng điền ngày và lý do điều chỉnh");
+      return;
+    }
+
+    const todayStr = LocalDate.now();
+    if (adjustDate > todayStr) {
+      toast.error("Không được phép đề xuất điều chỉnh công cho ngày trong tương lai!");
       return;
     }
 
@@ -1407,7 +1421,14 @@ const AttendancePage: React.FC = () => {
           <form onSubmit={handleAdjustSubmit} className="space-y-4 py-2">
             <div className="space-y-1">
               <Label htmlFor="adj-date">Chọn ngày cần sửa *</Label>
-              <Input id="adj-date" type="date" value={adjustDate} onChange={e => setAdjustDate(e.target.value)} required />
+              <Input 
+                id="adj-date" 
+                type="date" 
+                value={adjustDate} 
+                onChange={e => setAdjustDate(e.target.value)} 
+                max={LocalDate.now()}
+                required 
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">

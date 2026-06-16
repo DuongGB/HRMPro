@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { logout } from "../../store/slices/authSlice";
+import { WebSocketProvider } from "../../hooks/useWebSocket";
+import ChatWidget from "./ChatWidget";
 import { cn } from "@/lib/utils";
 import {
   Menu as MenuIcon,
@@ -140,10 +142,11 @@ const SidebarLayout: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen bg-muted/40">
-      {/* Sider */}
-      <aside
-        className={cn(
+    <WebSocketProvider>
+      <div className="flex h-screen bg-muted/40">
+        {/* Sider */}
+        <aside
+          className={cn(
           "bg-background border-r transition-all duration-300 flex flex-col z-20",
           collapsed ? "w-16" : "w-64"
         )}
@@ -203,10 +206,10 @@ const SidebarLayout: React.FC = () => {
                 <Button variant="ghost" className="flex items-center gap-2 px-2 py-1 h-auto rounded-full md:rounded-md">
                   <Avatar className="w-8 h-8 border">
                     <AvatarFallback className="bg-primary text-primary-foreground">
-                      {user?.username?.charAt(0).toUpperCase() || "U"}
+                      {(user?.employeeName || user?.username)?.charAt(0).toUpperCase() || "U"}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="font-medium hidden md:inline">{user?.username}</span>
+                  <span className="font-medium hidden md:inline">{user?.employeeName || user?.username}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
@@ -237,7 +240,9 @@ const SidebarLayout: React.FC = () => {
           <AnimatedOutlet />
         </main>
       </div>
+      <ChatWidget />
     </div>
+    </WebSocketProvider>
   );
 };
 

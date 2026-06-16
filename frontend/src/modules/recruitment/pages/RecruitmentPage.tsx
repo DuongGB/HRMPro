@@ -4,6 +4,7 @@ import { recruitmentApi, type JobPostingResponse, type ApplicationResponse, type
 import { organizationApi } from "../../organization/api/organizationApi";
 import { employeeApi } from "../../employee/api/employeeApi";
 import { usePermission } from "../../../hooks/usePermission";
+import { useWebSocket } from "../../../hooks/useWebSocket";
 import { toast } from "sonner";
 import {
   Briefcase,
@@ -78,7 +79,6 @@ const RecruitmentPage: React.FC = () => {
   const roles = user?.roles || [];
 
   const isRecruiter = roles.includes("RECRUITER");
-  const isManager = roles.includes("MANAGER");
 
   // Kanban Filter & Data
   const [selectedJobIdFilter, setSelectedJobIdFilter] = useState<string>("all");
@@ -99,6 +99,33 @@ const RecruitmentPage: React.FC = () => {
   const [targetAppId, setTargetAppId] = useState<number | null>(null);
   const [targetStage, setTargetStage] = useState("");
   const [rejectedReason, setRejectedReason] = useState("");
+
+  const { isConnected, stompClient } = useWebSocket();
+
+  React.useEffect(() => {
+    if (isConnected && stompClient) {
+      const kanbanSubscription = stompClient.subscribe('/topic/recruitment/kanban', (message) => {
+        if (message.body) {
+          const payload = JSON.parse(message.body);
+          if (selectedJobIdFilter === "all" || selectedJobIdFilter === payload.jobId.toString()) {
+             queryClient.invalidateQueries({ queryKey: ["applications", selectedJobIdFilter === "all" ? undefined : Number(selectedJobIdFilter)] });
+          }
+        }
+      });
+
+      const approvalSubscription = stompClient.subscribe('/topic/recruitment/interview-approval', (message) => {
+        if (message.body) {
+          queryClient.invalidateQueries({ queryKey: ["interviews"] });
+          queryClient.invalidateQueries({ queryKey: ["applications"] });
+        }
+      });
+
+      return () => {
+        kanbanSubscription.unsubscribe();
+        approvalSubscription.unsubscribe();
+      };
+    }
+  }, [isConnected, stompClient, queryClient, selectedJobIdFilter]);
 
   // Dialog State: Lên lịch phỏng vấn
   const [isScheduleInterviewOpen, setIsScheduleInterviewOpen] = useState(false);
@@ -701,30 +728,54 @@ const RecruitmentPage: React.FC = () => {
                               <Badge className={`${INTERVIEW_RESULT_COLORS[int.result]} border font-semibold`}>
                                 {INTERVIEW_RESULT_LABELS[int.result]}
                               </Badge>
+                            ) : (int.scheduledAt && new Date(int.scheduledAt).getTime() > new Date().getTime()) ? (
+                              <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20">Chưa diễn ra</Badge>
                             ) : (
                               <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20">Chờ phỏng vấn</Badge>
                             )}
                           </TableCell>
                           <TableCell className="text-right space-x-1">
                             {isRecruiter && int.approvalStatus === "APPROVED" && (
-                              <Button size="sm" onClick={() => openInterviewResultModal(int)} className="bg-muted hover:bg-muted/80 text-foreground text-xs h-8">
-                                <ClipboardList className="h-4 w-4 mr-1" /> Nhận xét
-                              </Button>
+                              (() => {
+                                const isFutureInterview = int.scheduledAt ? new Date(int.scheduledAt).getTime() > new Date().getTime() : false;
+                                return (
+                                  <Button 
+                                    size="sm" 
+                                    onClick={() => openInterviewResultModal(int)} 
+                                    className="bg-muted hover:bg-muted/80 text-foreground text-xs h-8"
+                                    disabled={isFutureInterview}
+                                    title={isFutureInterview ? "Không thể nhận xét cuộc phỏng vấn chưa diễn ra" : ""}
+                                  >
+                                    <ClipboardList className="h-4 w-4 mr-1" /> Nhận xét
+                                  </Button>
+                                );
+                              })()
                             )}
-                            {isManager && int.approvalStatus === "PENDING" && (
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  setTargetScheduleId(int.id);
-                                  setApprovalStatusAction("APPROVED");
-                                  setApprovalFeedbackAction("");
-                                  setIsApproveScheduleOpen(true);
-                                }}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8"
-                              >
-                                Duyệt lịch
-                              </Button>
-                            )}
+                            {(() => {
+                              const isSystemAdmin = roles.some(r => ["SUPER_ADMIN", "HR_ADMIN"].includes(r));
+                              const isInterviewerOfThis = int.interviewers ? 
+                                int.interviewers.split(",")
+                                  .map((s: string) => s.trim().replace("[", "").replace("]", "").replace(/"/g, "").replace(/'/g, ""))
+                                  .filter((s: string) => s !== "")
+                                  .includes(String(user?.employeeId)) : false;
+                              
+                              const canApproveThis = isSystemAdmin || isInterviewerOfThis;
+                              
+                              return canApproveThis && int.approvalStatus === "PENDING" && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setTargetScheduleId(int.id);
+                                    setApprovalStatusAction("APPROVED");
+                                    setApprovalFeedbackAction("");
+                                    setIsApproveScheduleOpen(true);
+                                  }}
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8"
+                                >
+                                  Duyệt lịch
+                                </Button>
+                              );
+                            })()}
                           </TableCell>
                         </TableRow>
                       ))}
