@@ -7,6 +7,8 @@ export interface UserResponse {
   id: number;
   username: string;
   fullName?: string;
+  employeeName?: string;
+  employeeCode?: string;
   roles: string[];
   employeeId: number | null;
 }
