@@ -40,6 +40,11 @@ import java.util.stream.Collectors;
 @Slf4j
 public class LeaveService {
 
+    /**
+     * Giới hạn tối đa số ngày phép năm cho một nhân sự (theo chính sách công ty)
+     */
+    private static final BigDecimal MAX_ANNUAL_LEAVE_DAYS = new BigDecimal("16.0");
+
     private final LeaveRequestRepository leaveRequestRepository;
     private final LeaveTypeRepository leaveTypeRepository;
     private final LeaveBalanceRepository leaveBalanceRepository;
@@ -262,7 +267,13 @@ public class LeaveService {
             Optional<LeaveBalance> existing = leaveBalanceRepository.findByEmployeeIdAndLeaveTypeIdAndYear(employeeId, type.getId(), year);
             if (existing.isEmpty()) {
                 BigDecimal totalDays = type.getDaysPerYear() != null ? type.getDaysPerYear() : BigDecimal.ZERO;
-                
+
+                // Áp dụng giới hạn 16 ngày cho loại phép ANNUAL
+                if ("ANNUAL".equalsIgnoreCase(type.getCode()) && totalDays.compareTo(MAX_ANNUAL_LEAVE_DAYS) > 0) {
+                    totalDays = MAX_ANNUAL_LEAVE_DAYS;
+                    log.info("Số ngày phép năm của nhân viên {} đã được giới hạn ở mức tối đa 16 ngày", employee.getFullName());
+                }
+
                 LeaveBalance balance = LeaveBalance.builder()
                         .employee(employee)
                         .leaveType(type)

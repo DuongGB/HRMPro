@@ -31,6 +31,11 @@ import java.util.Optional;
 @Slf4j
 public class HrmAutomationScheduler {
 
+    /**
+     * Giới hạn tối đa số ngày phép năm cho một nhân sự (theo chính sách công ty)
+     */
+    private static final BigDecimal MAX_ANNUAL_LEAVE_DAYS = new BigDecimal("16.0");
+
     private final EmployeeRepository employeeRepository;
     private final NotificationRepository notificationRepository;
     private final JobPostingRepository jobPostingRepository;
@@ -316,16 +321,22 @@ public class HrmAutomationScheduler {
                             .findByEmployeeIdAndLeaveTypeIdAndYear(emp.getId(), annualLeaveType.getId(), currentYear);
 
                     if (existingBalance.isEmpty()) {
+                        // Cap số ngày phép ở mức tối đa 16 ngày
+                        BigDecimal totalDays = annualLeaveType.getDaysPerYear();
+                        if (totalDays.compareTo(MAX_ANNUAL_LEAVE_DAYS) > 0) {
+                            totalDays = MAX_ANNUAL_LEAVE_DAYS;
+                        }
+
                         LeaveBalance newBalance = LeaveBalance.builder()
                                 .employee(emp)
                                 .leaveType(annualLeaveType)
                                 .year(currentYear)
-                                .totalDays(annualLeaveType.getDaysPerYear())
+                                .totalDays(totalDays)
                                 .usedDays(BigDecimal.ZERO)
                                 .pendingDays(BigDecimal.ZERO)
                                 .build();
                         leaveBalanceRepository.save(newBalance);
-                        log.info("Đã khởi tạo phép năm cho: {} - {} ngày", emp.getFullName(), annualLeaveType.getDaysPerYear());
+                        log.info("Đã khởi tạo phép năm cho: {} - {} ngày (giới hạn tối đa: 16 ngày)", emp.getFullName(), totalDays);
                     }
                 } catch (Exception e) {
                     log.error("Lỗi khi khởi tạo phép cho nhân viên {}: {}", emp.getFullName(), e.getMessage());
@@ -372,18 +383,31 @@ public class HrmAutomationScheduler {
                             balance = balanceOpt.get();
                             BigDecimal defaultDays = annualLeaveType.getDaysPerYear() != null ? annualLeaveType.getDaysPerYear() : new BigDecimal("12.0");
                             BigDecimal newTotalDays = defaultDays.add(new BigDecimal(seniorityDaysBonus));
-                            
+
+                            // Áp dụng giới hạn tối đa 16 ngày
+                            if (newTotalDays.compareTo(MAX_ANNUAL_LEAVE_DAYS) > 0) {
+                                newTotalDays = MAX_ANNUAL_LEAVE_DAYS;
+                                log.info("Phép thâm niên cho {} đã đạt giới hạn tối đa 16 ngày (thâm niên {} năm)",
+                                        emp.getFullName(), yearsOfService);
+                            }
+
                             // Nếu số ngày phép hiện tại khác số ngày được tính mới (bao gồm thâm niên) thì cập nhật
                             if (balance.getTotalDays().compareTo(newTotalDays) != 0) {
                                 balance.setTotalDays(newTotalDays);
                                 leaveBalanceRepository.save(balance);
-                                log.info("Cập nhật phép thâm niên cho {}: Thâm niên {} năm -> Tổng ngày phép: {}", 
+                                log.info("Cập nhật phép thâm niên cho {}: Thâm niên {} năm -> Tổng ngày phép: {}",
                                         emp.getFullName(), yearsOfService, newTotalDays);
                             }
                         } else {
                             // Tạo mới nếu chưa có
                             BigDecimal defaultDays = annualLeaveType.getDaysPerYear() != null ? annualLeaveType.getDaysPerYear() : new BigDecimal("12.0");
                             BigDecimal newTotalDays = defaultDays.add(new BigDecimal(seniorityDaysBonus));
+
+                            // Áp dụng giới hạn tối đa 16 ngày
+                            if (newTotalDays.compareTo(MAX_ANNUAL_LEAVE_DAYS) > 0) {
+                                newTotalDays = MAX_ANNUAL_LEAVE_DAYS;
+                            }
+
                             balance = LeaveBalance.builder()
                                     .employee(emp)
                                     .leaveType(annualLeaveType)
@@ -393,7 +417,7 @@ public class HrmAutomationScheduler {
                                     .pendingDays(BigDecimal.ZERO)
                                     .build();
                             leaveBalanceRepository.save(balance);
-                            log.info("Tạo mới số dư phép có thâm niên cho {}: Thâm niên {} năm -> Tổng ngày phép: {}", 
+                            log.info("Tạo mới số dư phép có thâm niên cho {}: Thâm niên {} năm -> Tổng ngày phép: {} (giới hạn: 16)",
                                     emp.getFullName(), yearsOfService, newTotalDays);
                         }
                     } catch (Exception e) {
