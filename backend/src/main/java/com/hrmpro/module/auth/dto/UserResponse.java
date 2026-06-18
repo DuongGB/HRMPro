@@ -16,6 +16,7 @@ public class UserResponse {
     private Long employeeId;
     private String employeeCode;
     private String employeeName;
+    private String avatarUrl;
     private Boolean isActive;
     private Set<String> roles;
     private LocalDateTime createdAt;

@@ -77,6 +77,7 @@ public class AuthService {
         Long employeeId = user.getEmployee() != null ? user.getEmployee().getId() : null;
         String employeeCode = user.getEmployee() != null ? user.getEmployee().getEmployeeCode() : null;
         String employeeName = user.getEmployee() != null ? user.getEmployee().getFullName() : null;
+        String avatarUrl = user.getEmployee() != null ? user.getEmployee().getAvatarUrl() : null;
 
         UserResponse userResponse = UserResponse.builder()
                 .id(user.getId())
@@ -85,6 +86,7 @@ public class AuthService {
                 .employeeId(employeeId)
                 .employeeCode(employeeCode)
                 .employeeName(employeeName)
+                .avatarUrl(avatarUrl)
                 .isActive(user.getIsActive())
                 .createdAt(user.getCreatedAt())
                 .build();

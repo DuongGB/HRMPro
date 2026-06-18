@@ -165,9 +165,11 @@ public class UserService {
     private UserResponse convertToUserResponse(User user) {
         String employeeCode = null;
         String employeeName = null;
+        String avatarUrl = null;
         if (user.getEmployee() != null) {
             employeeCode = user.getEmployee().getEmployeeCode();
             employeeName = user.getEmployee().getFullName();
+            avatarUrl = user.getEmployee().getAvatarUrl();
         }
 
         Set<String> roleNames = user.getRoles().stream()
@@ -180,6 +182,7 @@ public class UserService {
                 .employeeId(user.getEmployee() != null ? user.getEmployee().getId() : null)
                 .employeeCode(employeeCode)
                 .employeeName(employeeName)
+                .avatarUrl(avatarUrl)
                 .isActive(user.getIsActive())
                 .roles(roleNames)
                 .createdAt(user.getCreatedAt())
