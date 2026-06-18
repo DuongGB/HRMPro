@@ -80,7 +80,7 @@ public class EmployeeController {
     }
 
     @PostMapping(value = "/{id}/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'HR_ADMIN') or @hrmSecurity.isSelf(#id)")
+    @PreAuthorize("@hrmSecurity.isSelf(#id)")
     public ResponseEntity<ApiResponse<EmployeeResponse>> updateAvatar(
             @PathVariable Long id,
             @RequestParam("file") MultipartFile file
