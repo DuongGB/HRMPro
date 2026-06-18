@@ -10,7 +10,7 @@ import { employeeApi } from '../../modules/employee/api/employeeApi';
 import api from '../../config/api';
 
 interface ChatMessage {
-  id: number;
+  id: string;
   senderId: number;
   senderName: string;
   senderAvatar?: string;
@@ -23,15 +23,21 @@ interface ChatMessage {
 const ChatWidget: React.FC = () => {
   const { isConnected, stompClient } = useWebSocket();
   const currentUser = useAppSelector((state: any) => state.auth.user);
-  
+
   const [isOpen, setIsOpen] = useState(false);
   const [activeContact, setActiveContact] = useState<{ id: number, name: string, avatar?: string } | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [contacts, setContacts] = useState<any[]>([]);
   const [search, setSearch] = useState('');
-  
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const activeContactRef = useRef<{ id: number, name: string, avatar?: string } | null>(null);
+
+  // Đồng bộ activeContact vào ref để sử dụng trong WebSocket callback
+  useEffect(() => {
+    activeContactRef.current = activeContact;
+  }, [activeContact]);
 
   // Lấy danh sách liên hệ (tạm dùng danh sách employee)
   useEffect(() => {
@@ -54,6 +60,7 @@ const ChatWidget: React.FC = () => {
       const fetchHistory = async () => {
         try {
           const res = await api.get(`/chat/history/${activeContact.id}`);
+          // res đã là ApiResponse từ response interceptor: { success: true, message: "...", data: [...] }
           setMessages(res.data || []);
         } catch (error) {
           console.error("Error fetching chat history", error);
@@ -76,10 +83,22 @@ const ChatWidget: React.FC = () => {
       const subscription = stompClient.subscribe('/user/queue/chat', (message: any) => {
         if (message.body) {
           const newMsg = JSON.parse(message.body);
-          // Thêm vào danh sách nếu đang chat với người này hoặc do chính mình gửi
+
+          // Thêm vào danh sách CHỈ KHI đang mở đúng đoạn hội thoại với người đó (hoặc do chính mình gửi trong khung chat đó)
           setMessages((prev) => {
+             // Kiểm tra xem tin nhắn này có thuộc về cuộc hội thoại hiện tại không (activeContact)
+             const currentContact = activeContactRef.current;
+
+             // Nếu đang không mở hộp thoại nào, bỏ qua
+             if (!currentContact) return prev;
+
+             // Nếu tin nhắn không liên quan đến người đang chat, bỏ qua
+             const isRelevant = newMsg.senderId === currentContact.id || newMsg.receiverId === currentContact.id;
+             if (!isRelevant) return prev;
+
              // Để tránh duplicate nếu backend gửi lại cho sender
              if (prev.find(m => m.id === newMsg.id)) return prev;
+
              return [...prev, newMsg];
           });
         }
