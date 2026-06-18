@@ -28,7 +28,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
 import AnimatedOutlet from "@/components/common/AnimatedOutlet";
@@ -205,6 +205,7 @@ const SidebarLayout: React.FC = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2 px-2 py-1 h-auto rounded-full md:rounded-md">
                   <Avatar className="w-8 h-8 border">
+                    <AvatarImage src={user?.avatarUrl || ""} alt={user?.employeeName || user?.username} />
                     <AvatarFallback className="bg-primary text-primary-foreground">
                       {(user?.employeeName || user?.username)?.charAt(0).toUpperCase() || "U"}
                     </AvatarFallback>

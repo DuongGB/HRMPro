@@ -374,7 +374,7 @@ const EmployeeDetailPage: React.FC = () => {
               {employee.lastName.charAt(0)}{employee.firstName.charAt(0)}
             </AvatarFallback>
           </Avatar>
-          {(isSelf || canManage) && (
+          {isSelf && (
             <>
               <button
                 onClick={() => fileInputRef.current?.click()}

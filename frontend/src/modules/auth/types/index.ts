@@ -9,6 +9,7 @@ export interface UserResponse {
   fullName?: string;
   employeeName?: string;
   employeeCode?: string;
+  avatarUrl?: string;
   roles: string[];
   employeeId: number | null;
 }
