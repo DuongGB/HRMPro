@@ -1,5 +1,8 @@
 package com.hrmpro.module.auth.service;
 
+import com.hrmpro.common.service.MinioService;
+import org.springframework.beans.factory.annotation.Value;
+import java.util.concurrent.TimeUnit;
 import com.hrmpro.common.dto.PageResponse;
 import com.hrmpro.common.exception.AppException;
 import com.hrmpro.common.exception.ResourceNotFoundException;
@@ -37,6 +40,10 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final EmployeeRepository employeeRepository;
     private final PasswordEncoder passwordEncoder;
+    private final MinioService minioService;
+
+    @Value("${app.minio.bucket.avatars}")
+    private String avatarBucket;
 
     /**
      * Lấy danh sách tài khoản người dùng có phân trang
@@ -169,7 +176,14 @@ public class UserService {
         if (user.getEmployee() != null) {
             employeeCode = user.getEmployee().getEmployeeCode();
             employeeName = user.getEmployee().getFullName();
-            avatarUrl = user.getEmployee().getAvatarUrl();
+            if (user.getEmployee().getAvatarUrl() != null) {
+                try {
+                    avatarUrl = minioService.getPresignedUrl(avatarBucket, user.getEmployee().getAvatarUrl(), 900);
+                } catch (Exception e) {
+                    log.error("Lỗi sinh presigned URL cho avatar: ", e);
+                    avatarUrl = user.getEmployee().getAvatarUrl();
+                }
+            }
         }
 
         Set<String> roleNames = user.getRoles().stream()

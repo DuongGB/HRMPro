@@ -1,5 +1,6 @@
 package com.hrmpro.module.auth.service;
 
+import com.hrmpro.common.service.MinioService;
 import com.hrmpro.common.exception.AppException;
 import com.hrmpro.common.exception.ResourceNotFoundException;
 import com.hrmpro.module.auth.dto.*;
@@ -37,12 +38,16 @@ public class AuthService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
+    private final MinioService minioService;
 
     @Value("${app.jwt.expiration-ms}")
     private long jwtExpirationMs;
 
     @Value("${app.jwt.refresh-expiration-ms}")
     private long refreshExpirationMs;
+
+    @Value("${app.minio.bucket.avatars}")
+    private String avatarBucket;
 
     @Transactional
     public LoginResponse login(LoginRequest request) {
@@ -77,7 +82,16 @@ public class AuthService {
         Long employeeId = user.getEmployee() != null ? user.getEmployee().getId() : null;
         String employeeCode = user.getEmployee() != null ? user.getEmployee().getEmployeeCode() : null;
         String employeeName = user.getEmployee() != null ? user.getEmployee().getFullName() : null;
-        String avatarUrl = user.getEmployee() != null ? user.getEmployee().getAvatarUrl() : null;
+
+        String avatarUrl = null;
+        if (user.getEmployee() != null && user.getEmployee().getAvatarUrl() != null) {
+            try {
+                avatarUrl = minioService.getPresignedUrl(avatarBucket, user.getEmployee().getAvatarUrl(), 900);
+            } catch (Exception e) {
+                log.error("Lỗi sinh presigned URL cho avatar người dùng khi login: ", e);
+                avatarUrl = user.getEmployee().getAvatarUrl();
+            }
+        }
 
         UserResponse userResponse = UserResponse.builder()
                 .id(user.getId())

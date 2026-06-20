@@ -56,6 +56,14 @@ public class GlobalExceptionHandler {
                 .body(new ApiResponse<>(false, "Dữ liệu yêu cầu không hợp lệ", errors, java.time.LocalDateTime.now()));
     }
 
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceededException(org.springframework.web.multipart.MaxUploadSizeExceededException ex) {
+        log.warn("Kích thước file vượt quá giới hạn cho phép: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("Kích thước file tải lên vượt quá giới hạn cho phép (tối đa 10MB)"));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception ex) {
         log.error("Lỗi hệ thống nghiêm trọng: ", ex);
