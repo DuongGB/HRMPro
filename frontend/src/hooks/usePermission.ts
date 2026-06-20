@@ -67,5 +67,5 @@ export const usePermission = () => {
     return user.roles.some((role) => roles.includes(role));
   };
 
-  return { can, hasAnyRole, userRoles: user?.roles || [] };
+  return { can, hasAnyRole, userRoles: user?.roles || [], user };
 };

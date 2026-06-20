@@ -1,13 +1,13 @@
 package com.hrmpro;
 
+import com.hrmpro.integration.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest(classes = com.hrmpro.HrmProApplication.class)
-class HrmProApplicationTests {
+class HrmProApplicationTests extends AbstractIntegrationTest {
 
     @Test
     void contextLoads() {
     }
 
 }
+

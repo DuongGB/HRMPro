@@ -1,114 +1,147 @@
 import React from "react";
-import { Form, Input, Button, Card, Typography, message, Row, Col } from "antd";
-import { LockOutlined } from "@ant-design/icons";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { useMutation } from "@tanstack/react-query";
-import { authApi } from "../api/authApi";
 import { useNavigate } from "react-router-dom";
+import { Lock, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
+import { authApi } from "../api/authApi";
 import type { ChangePasswordRequest } from "../types";
 
-const { Title, Paragraph } = Typography;
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, { message: "Vui lòng nhập mật khẩu hiện tại!" }),
+  newPassword: z.string().min(6, { message: "Mật khẩu mới phải có tối thiểu 6 ký tự!" }),
+  confirmPassword: z.string().min(1, { message: "Vui lòng xác nhận mật khẩu mới!" }),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Mật khẩu xác nhận không khớp!",
+  path: ["confirmPassword"],
+});
 
 const ChangePasswordPage: React.FC = () => {
   const navigate = useNavigate();
-  const [form] = Form.useForm();
+
+  const form = useForm<z.infer<typeof changePasswordSchema>>({
+    resolver: zodResolver(changePasswordSchema),
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    },
+  });
 
   const changePwdMutation = useMutation({
     mutationFn: (data: ChangePasswordRequest) => authApi.changePassword(data),
     onSuccess: () => {
-      message.success("Thay đổi mật khẩu thành công!");
-      form.resetFields();
+      toast.success("Thay đổi mật khẩu thành công!");
+      form.reset();
       navigate("/");
     },
     onError: (error: any) => {
-      message.error(error.message || "Thay đổi mật khẩu thất bại, vui lòng thử lại!");
+      toast.error(error.message || "Thay đổi mật khẩu thất bại, vui lòng thử lại!");
     },
   });
 
-  const onFinish = (values: any) => {
+  function onSubmit(values: z.infer<typeof changePasswordSchema>) {
     changePwdMutation.mutate({
       currentPassword: values.currentPassword,
       newPassword: values.newPassword,
     });
-  };
+  }
 
   return (
-    <Row justify="center">
-      <Col xs={24} sm={20} md={16} lg={12}>
-        <Card bordered={false} style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.05)", borderRadius: 8 }}>
-          <div style={{ marginBottom: 24 }}>
-            <Title level={3} style={{ margin: 0 }}>Đổi mật khẩu</Title>
-            <Paragraph type="secondary">Vui lòng nhập mật khẩu cũ và mật khẩu mới của bạn.</Paragraph>
-          </div>
-
-          <Form
-            form={form}
-            name="change_password_form"
-            layout="vertical"
-            onFinish={onFinish}
-            size="large"
-          >
-            <Form.Item
-              label="Mật khẩu hiện tại"
-              name="currentPassword"
-              rules={[{ required: true, message: "Vui lòng nhập mật khẩu hiện tại!" }]}
-            >
-              <Input.Password
-                prefix={<LockOutlined style={{ color: "#bfbfbf" }} />}
-                placeholder="Mật khẩu hiện tại"
+    <div className="flex justify-center w-full max-w-xl mx-auto">
+      <Card className="w-full shadow-sm">
+        <CardHeader className="pb-6">
+          <CardTitle className="text-xl">Đổi mật khẩu</CardTitle>
+          <CardDescription>Vui lòng nhập mật khẩu cũ và mật khẩu mới của bạn.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="currentPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Mật khẩu hiện tại</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input type="password" placeholder="Mật khẩu hiện tại" className="pl-9" {...field} />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </Form.Item>
 
-            <Form.Item
-              label="Mật khẩu mới"
-              name="newPassword"
-              rules={[
-                { required: true, message: "Vui lòng nhập mật khẩu mới!" },
-                { min: 6, message: "Mật khẩu mới phải có tối thiểu 6 ký tự!" }
-              ]}
-            >
-              <Input.Password
-                prefix={<LockOutlined style={{ color: "#bfbfbf" }} />}
-                placeholder="Mật khẩu mới"
+              <FormField
+                control={form.control}
+                name="newPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Mật khẩu mới</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input type="password" placeholder="Mật khẩu mới" className="pl-9" {...field} />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </Form.Item>
 
-            <Form.Item
-              label="Xác nhận mật khẩu mới"
-              name="confirmPassword"
-              dependencies={["newPassword"]}
-              rules={[
-                { required: true, message: "Vui lòng xác nhận mật khẩu mới!" },
-                ({ getFieldValue }) => ({
-                  validator(_, value) {
-                    if (!value || getFieldValue("newPassword") === value) {
-                      return Promise.resolve();
-                    }
-                    return Promise.reject(new Error("Mật khẩu xác nhận không khớp!"));
-                  },
-                }),
-              ]}
-            >
-              <Input.Password
-                prefix={<LockOutlined style={{ color: "#bfbfbf" }} />}
-                placeholder="Xác nhận mật khẩu mới"
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Xác nhận mật khẩu mới</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input type="password" placeholder="Xác nhận mật khẩu mới" className="pl-9" {...field} />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </Form.Item>
 
-            <Form.Item>
               <Button
-                type="primary"
-                htmlType="submit"
-                loading={changePwdMutation.isPending}
-                block
-                style={{ height: 44, borderRadius: 6 }}
+                type="submit"
+                className="w-full mt-6"
+                disabled={changePwdMutation.isPending}
               >
+                {changePwdMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Đổi mật khẩu
               </Button>
-            </Form.Item>
+            </form>
           </Form>
-        </Card>
-      </Col>
-    </Row>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
