@@ -24,6 +24,7 @@ import LeavePage from "./modules/leave/pages/LeavePage";
 import PayrollPage from "./modules/payroll/pages/PayrollPage";
 import PerformancePage from "./modules/performance/pages/PerformancePage";
 import RecruitmentPage from "./modules/recruitment/pages/RecruitmentPage";
+import HelpPage from "./components/common/HelpPage";
 
 
 // Khởi tạo Query Client cho React Query
@@ -142,6 +143,9 @@ const App: React.FC = () => {
                     </RoleProtectedRoute>
                   }
                 />
+
+                {/* Trang Hướng dẫn & Phím tắt */}
+                <Route path="help" element={<HelpPage />} />
 
                 {/* Các trang lỗi */}
                 <Route path="403" element={<UnauthorizedPage />} />

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../store";
 import { logout } from "../../store/slices/authSlice";
@@ -20,6 +20,7 @@ import {
   LogOut,
   Settings,
   RefreshCw,
+  HelpCircle,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -32,13 +33,74 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
 import AnimatedOutlet from "@/components/common/AnimatedOutlet";
+import { useTheme } from "@/components/theme-provider";
 
 const SidebarLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const { user } = useAppSelector((state) => state.auth);
+  const { theme, setTheme } = useTheme();
+
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Bắt sự kiện phím tắt toàn hệ thống (Navigation & Theme Shortcuts)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      // Hỗ trợ cả Alt + Key và Ctrl + Alt + Key để tránh xung đột phím Alt mặc định của một số trình duyệt
+      const isAltShortcut = e.altKey && !e.shiftKey;
+      if (isAltShortcut) {
+        const code = e.code;
+        switch (code) {
+          case "KeyD": // Alt + D -> Dashboard
+            e.preventDefault();
+            navigate("/");
+            break;
+          case "KeyH": // Alt + H -> Help Page
+            e.preventDefault();
+            navigate("/help");
+            break;
+          case "KeyP": // Alt + P -> Profile hoặc Danh sách nhân viên làm fallback
+            e.preventDefault();
+            if (user?.employeeId) {
+              navigate(`/employees/${user.employeeId}`);
+            } else {
+              const roles = user?.roles || [];
+              if (roles.some(r => ["SUPER_ADMIN", "HR_ADMIN", "HR_STAFF", "MANAGER"].includes(r))) {
+                navigate("/employees");
+              } else {
+                navigate("/");
+              }
+            }
+            break;
+          case "KeyC": // Alt + C -> Change Password
+            e.preventDefault();
+            navigate("/change-password");
+            break;
+          case "KeyT": // Alt + T -> Toggle Theme
+            e.preventDefault();
+            setTheme(theme === "dark" ? "light" : "dark");
+            break;
+          default:
+            break;
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [navigate, user, theme, setTheme]);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -140,6 +202,13 @@ const SidebarLayout: React.FC = () => {
       label: "Tự động hóa",
     });
   }
+
+  // 10. Hướng dẫn & Phím tắt (Dành cho mọi vai trò)
+  menuItems.push({
+    key: "/help",
+    icon: <HelpCircle size={20} />,
+    label: "Hướng dẫn & Phím tắt",
+  });
 
   return (
     <WebSocketProvider>
