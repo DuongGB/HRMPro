@@ -3,8 +3,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation } from "@tanstack/react-query";
-import { useNavigate, useLocation } from "react-router-dom";
-import { User, Lock, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { User, Lock, Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 import { authApi } from "../api/authApi";
@@ -37,9 +37,7 @@ const loginSchema = z.object({
 const LoginPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const location = useLocation();
-
-  const from = (location.state as any)?.from?.pathname || "/";
+  const [showPassword, setShowPassword] = React.useState(false);
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -57,11 +55,21 @@ const LoginPage: React.FC = () => {
     onSuccess: (data) => {
       dispatch(loginSuccess(data));
       toast.success("Đăng nhập thành công!");
-      navigate(from, { replace: true });
+      navigate("/", { replace: true });
     },
     onError: (error: any) => {
       dispatch(loginFailure());
-      toast.error(error.message || "Đăng nhập thất bại, vui lòng thử lại!");
+      
+      let errorMsg = "Đăng nhập thất bại, vui lòng thử lại!";
+      if (error.response?.status === 401 || error.message?.includes("401")) {
+        errorMsg = "Tên đăng nhập hoặc mật khẩu không chính xác!";
+      } else if (error.response?.data?.message) {
+        errorMsg = error.response.data.message;
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      
+      toast.error(errorMsg);
     },
   });
 
@@ -106,7 +114,19 @@ const LoginPage: React.FC = () => {
                     <FormControl>
                       <div className="relative">
                         <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input type="password" placeholder="Mật khẩu" className="pl-9 h-10" {...field} />
+                        <Input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Mật khẩu"
+                          className="pl-9 pr-10 h-10"
+                          {...field}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-3 text-muted-foreground hover:text-foreground focus:outline-none"
+                        >
+                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
                       </div>
                     </FormControl>
                     <FormMessage />
