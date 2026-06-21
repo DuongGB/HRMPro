@@ -17,4 +17,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT u.employee.id FROM User u WHERE u.employee.id IS NOT NULL")
     Set<Long> findAllLinkedEmployeeIds();
+
+    @Query("SELECT u FROM User u WHERE u.employee IS NOT NULL AND (u.employee.email = :email OR u.employee.personalEmail = :email)")
+    Optional<User> findByEmployeeEmail(String email);
+
+    Optional<User> findByResetToken(String resetToken);
 }

@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Lock, Loader2 } from "lucide-react";
+import { Lock, Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 import { authApi } from "../api/authApi";
@@ -39,6 +39,9 @@ const changePasswordSchema = z.object({
 
 const ChangePasswordPage: React.FC = () => {
   const navigate = useNavigate();
+  const [showCurrent, setShowCurrent] = React.useState(false);
+  const [showNew, setShowNew] = React.useState(false);
+  const [showConfirm, setShowConfirm] = React.useState(false);
 
   const form = useForm<z.infer<typeof changePasswordSchema>>({
     resolver: zodResolver(changePasswordSchema),
@@ -57,7 +60,16 @@ const ChangePasswordPage: React.FC = () => {
       navigate("/");
     },
     onError: (error: any) => {
-      toast.error(error.message || "Thay đổi mật khẩu thất bại, vui lòng thử lại!");
+      let errorMsg = "Thay đổi mật khẩu thất bại, vui lòng thử lại!";
+      if (error.response?.status === 401 || error.message?.includes("401")) {
+        errorMsg = "Mật khẩu hiện tại không chính xác!";
+      } else if (error.response?.data?.message) {
+        errorMsg = error.response.data.message;
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      
+      toast.error(errorMsg);
     },
   });
 
@@ -87,7 +99,19 @@ const ChangePasswordPage: React.FC = () => {
                     <FormControl>
                       <div className="relative">
                         <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input type="password" placeholder="Mật khẩu hiện tại" className="pl-9" {...field} />
+                        <Input
+                          type={showCurrent ? "text" : "password"}
+                          placeholder="Mật khẩu hiện tại"
+                          className="pl-9 pr-10"
+                          {...field}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrent(!showCurrent)}
+                          className="absolute right-3 top-3 text-muted-foreground hover:text-foreground focus:outline-none"
+                        >
+                          {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -104,7 +128,19 @@ const ChangePasswordPage: React.FC = () => {
                     <FormControl>
                       <div className="relative">
                         <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input type="password" placeholder="Mật khẩu mới" className="pl-9" {...field} />
+                        <Input
+                          type={showNew ? "text" : "password"}
+                          placeholder="Mật khẩu mới"
+                          className="pl-9 pr-10"
+                          {...field}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNew(!showNew)}
+                          className="absolute right-3 top-3 text-muted-foreground hover:text-foreground focus:outline-none"
+                        >
+                          {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -121,7 +157,19 @@ const ChangePasswordPage: React.FC = () => {
                     <FormControl>
                       <div className="relative">
                         <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input type="password" placeholder="Xác nhận mật khẩu mới" className="pl-9" {...field} />
+                        <Input
+                          type={showConfirm ? "text" : "password"}
+                          placeholder="Xác nhận mật khẩu mới"
+                          className="pl-9 pr-10"
+                          {...field}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirm(!showConfirm)}
+                          className="absolute right-3 top-3 text-muted-foreground hover:text-foreground focus:outline-none"
+                        >
+                          {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
                       </div>
                     </FormControl>
                     <FormMessage />

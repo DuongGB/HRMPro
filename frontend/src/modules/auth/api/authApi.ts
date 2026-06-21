@@ -1,5 +1,5 @@
 import api from "../../../config/api";
-import type { LoginRequest, LoginResponse, RefreshTokenResponse, ChangePasswordRequest } from "../types";
+import type { LoginRequest, LoginResponse, RefreshTokenResponse, ChangePasswordRequest, ResetPasswordRequest } from "../types";
 
 export const authApi = {
   login: async (data: LoginRequest): Promise<LoginResponse> => {
@@ -22,5 +22,13 @@ export const authApi = {
 
   changePassword: async (data: ChangePasswordRequest): Promise<void> => {
     await api.post("/auth/change-password", data);
+  },
+
+  forgotPassword: async (email: string): Promise<void> => {
+    await api.post("/auth/forgot-password", { email });
+  },
+
+  resetPassword: async (data: ResetPasswordRequest): Promise<void> => {
+    await api.post("/auth/reset-password", data);
   },
 };

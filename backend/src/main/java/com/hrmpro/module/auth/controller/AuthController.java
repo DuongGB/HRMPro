@@ -38,4 +38,16 @@ public class AuthController {
         authService.changePassword(request);
         return ResponseEntity.ok(ApiResponse.ok("Thay đổi mật khẩu thành công", null));
     }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.forgotPassword(request);
+        return ResponseEntity.ok(ApiResponse.ok("Yêu cầu khôi phục mật khẩu đã được gửi qua email", null));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(ApiResponse.ok("Khôi phục mật khẩu thành công", null));
+    }
 }

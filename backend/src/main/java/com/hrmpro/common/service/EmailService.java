@@ -1,19 +1,26 @@
 package com.hrmpro.common.service;
 
 import jakarta.mail.internet.MimeMessage;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class EmailService {
 
     private final JavaMailSender mailSender;
+    private final String fromEmail;
+
+    public EmailService(
+            JavaMailSender mailSender,
+            @Value("${app.mail.from}") String fromEmail) {
+        this.mailSender = mailSender;
+        this.fromEmail = fromEmail;
+    }
 
     /**
      * Gửi email thông báo phỏng vấn
@@ -22,7 +29,7 @@ public class EmailService {
     public void sendEmail(String to, String subject, String content) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("hrmpro.system@gmail.com");
+            message.setFrom(fromEmail);
             message.setTo(to);
             message.setSubject(subject);
             message.setText(content);
@@ -41,7 +48,7 @@ public class EmailService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom("hrmpro.system@gmail.com");
+            helper.setFrom(fromEmail);
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(htmlContent, true); // true để chỉ định định dạng HTML
