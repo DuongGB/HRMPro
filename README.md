@@ -16,9 +16,9 @@ Hệ thống tích hợp đầy đủ các tính năng từ quản lý hồ sơ 
 
 *   **Họ và tên**: Nguyễn Tấn Thái Dương
 *   **Chức danh**: Software Engineer / Fullstack Developer
-*   **Email**: [thaiduong.nguyen.se@gmail.com](mailto:thaiduong.nguyen.se@gmail.com) *(hoặc email cá nhân của bạn)*
-*   **LinkedIn**: [linkedin.com/in/duonggb](https://linkedin.com/in/duonggb) *(Thay thế bằng link thực tế của bạn nếu cần)*
-*   **GitHub**: [github.com/DuongGB](https://github.com/DuongGB)
+*   **Email**: [duongnguyenqn1323@gmail.com](mailto:duongnguyenqn1323@gmail.com) *(hoặc email cá nhân của bạn)*
+*   **LinkedIn**: [https://www.linkedin.com/in/d%C6%B0%C6%A1ng-nguy%E1%BB%85n-7528a736a/](https://www.linkedin.com/in/d%C6%B0%C6%A1ng-nguy%E1%BB%85n-7528a736a/) *(Thay thế bằng link thực tế của bạn nếu cần)*
+*   **GitHub**: [https://github.com/DuongGB](https://github.com/DuongGB)
 
 ---
 

@@ -5,7 +5,8 @@ import { employeeApi, type SelfUpdateRequest } from "../api/employeeApi";
 import { organizationApi } from "../../organization/api/organizationApi";
 import { toast } from "sonner";
 import { usePermission } from "../../../hooks/usePermission";
-import { useAppSelector } from "../../../store";
+import { useAppDispatch, useAppSelector } from "../../../store";
+import { updateUser } from "../../../store/slices/authSlice";
 import {
   ArrowLeft,
   Building,
@@ -93,6 +94,7 @@ const EmployeeDetailPage: React.FC = () => {
   const queryClient = useQueryClient();
   const { hasAnyRole } = usePermission();
   const user = useAppSelector((state) => state.auth.user);
+  const dispatch = useAppDispatch();
 
   const isSelf = user?.employeeId === empId;
   const canManage = hasAnyRole(["SUPER_ADMIN", "HR_ADMIN"]);
@@ -204,29 +206,54 @@ const EmployeeDetailPage: React.FC = () => {
   // ── Mutations ─────────────────────────────────────────────────────────────
   const updateMutation = useMutation({
     mutationFn: (data: any) => employeeApi.updateEmployee(empId, data),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["employee", empId] });
       toast.success("Cập nhật hồ sơ thành công!");
       setIsEditMode(false);
+      if (isSelf) {
+        dispatch(
+          updateUser({
+            employeeName: data.fullName,
+            fullName: data.fullName,
+            avatarUrl: data.avatarUrl || undefined,
+          })
+        );
+      }
     },
     onError: (error: any) => toast.error(error.message || "Cập nhật hồ sơ thất bại!"),
   });
 
   const selfUpdateMutation = useMutation({
     mutationFn: (data: SelfUpdateRequest) => employeeApi.selfUpdate(empId, data),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["employee", empId] });
       toast.success("Đã cập nhật thông tin cá nhân!");
       setIsSelfEditMode(false);
+      if (isSelf) {
+        dispatch(
+          updateUser({
+            employeeName: data.fullName,
+            fullName: data.fullName,
+            avatarUrl: data.avatarUrl || undefined,
+          })
+        );
+      }
     },
     onError: (error: any) => toast.error(error.message || "Cập nhật thất bại!"),
   });
 
   const avatarMutation = useMutation({
     mutationFn: (file: File) => employeeApi.updateAvatar(empId, file),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["employee", empId] });
       toast.success("Cập nhật ảnh đại diện thành công!");
+      if (isSelf) {
+        dispatch(
+          updateUser({
+            avatarUrl: data.avatarUrl || undefined,
+          })
+        );
+      }
     },
     onError: (error: any) => toast.error(error.message || "Tải ảnh đại diện thất bại!"),
   });
