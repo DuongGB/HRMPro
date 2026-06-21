@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { User, Lock, Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
@@ -133,6 +133,15 @@ const LoginPage: React.FC = () => {
                   </FormItem>
                 )}
               />
+
+              <div className="flex justify-end">
+                <Link
+                  to="/forgot-password"
+                  className="text-xs text-primary font-medium hover:underline focus:outline-none"
+                >
+                  Quên mật khẩu?
+                </Link>
+              </div>
 
               <Button
                 type="submit"

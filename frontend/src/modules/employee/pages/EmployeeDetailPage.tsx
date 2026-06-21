@@ -215,7 +215,7 @@ const EmployeeDetailPage: React.FC = () => {
           updateUser({
             employeeName: data.fullName,
             fullName: data.fullName,
-            avatarUrl: data.avatarUrl || undefined,
+            avatarUrl: data.avatarUrl ? `${data.avatarUrl}${data.avatarUrl.includes('?') ? '&' : '?'}t=${Date.now()}` : undefined,
           })
         );
       }
@@ -234,7 +234,7 @@ const EmployeeDetailPage: React.FC = () => {
           updateUser({
             employeeName: data.fullName,
             fullName: data.fullName,
-            avatarUrl: data.avatarUrl || undefined,
+            avatarUrl: data.avatarUrl ? `${data.avatarUrl}${data.avatarUrl.includes('?') ? '&' : '?'}t=${Date.now()}` : undefined,
           })
         );
       }
@@ -250,7 +250,7 @@ const EmployeeDetailPage: React.FC = () => {
       if (isSelf) {
         dispatch(
           updateUser({
-            avatarUrl: data.avatarUrl || undefined,
+            avatarUrl: data.avatarUrl ? `${data.avatarUrl}${data.avatarUrl.includes('?') ? '&' : '?'}t=${Date.now()}` : undefined,
           })
         );
       }
