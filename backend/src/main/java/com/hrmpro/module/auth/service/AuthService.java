@@ -1,6 +1,7 @@
 package com.hrmpro.module.auth.service;
 
 import com.hrmpro.common.service.MinioService;
+import com.hrmpro.common.service.EmailService;
 import com.hrmpro.common.exception.AppException;
 import com.hrmpro.common.exception.ResourceNotFoundException;
 import com.hrmpro.module.auth.dto.*;
@@ -39,6 +40,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final MinioService minioService;
+    private final EmailService emailService;
 
     @Value("${app.jwt.expiration-ms}")
     private long jwtExpirationMs;
@@ -159,6 +161,74 @@ public class AuthService {
         }
 
         user.setPassword(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+    }
+
+    private String hashToken(String token) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(token.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (Exception e) {
+            log.error("Lỗi băm token khôi phục mật khẩu: ", e);
+            return token;
+        }
+    }
+
+    @Transactional
+    public void forgotPassword(ForgotPasswordRequest request) {
+        log.info("Yêu cầu khôi phục mật khẩu cho email: {}", request.email());
+        
+        User user = userRepository.findByEmployeeEmail(request.email())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản liên kết với email này"));
+
+        if (!user.getIsActive()) {
+            throw new AppException("Tài khoản của bạn đã bị khóa", HttpStatus.BAD_REQUEST);
+        }
+
+        // Tạo token ngẫu nhiên và thời gian hết hạn (15 phút sau)
+        String token = UUID.randomUUID().toString();
+        user.setResetToken(hashToken(token));
+        user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
+        userRepository.save(user);
+
+        // Gửi email khôi phục mật khẩu với token gốc
+        String resetUrl = "http://localhost:5173/reset-password?token=" + token;
+        
+        String subject = "[HRMPro] Yêu cầu khôi phục mật khẩu tài khoản";
+        String content = "Chào " + user.getEmployee().getFullName() + ",\n\n" +
+                "Bạn đã yêu cầu khôi phục mật khẩu cho tài khoản HRMPro của mình.\n" +
+                "Vui lòng nhấn vào đường dẫn dưới đây để đặt lại mật khẩu mới (Đường dẫn có hiệu lực trong 15 phút):\n\n" +
+                resetUrl + "\n\n" +
+                "Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này.\n\n" +
+                "Trân trọng,\n" +
+                "Đội ngũ HRMPro";
+
+        emailService.sendEmail(request.email(), subject, content);
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        log.info("Thực hiện khôi phục mật khẩu bằng token");
+
+        String hashedToken = hashToken(request.token());
+        User user = userRepository.findByResetToken(hashedToken)
+                .orElseThrow(() -> new AppException("Token khôi phục mật khẩu không hợp lệ hoặc đã được sử dụng", HttpStatus.BAD_REQUEST));
+
+        if (user.getResetTokenExpiry() == null || user.getResetTokenExpiry().isBefore(LocalDateTime.now())) {
+            throw new AppException("Token khôi phục mật khẩu đã hết hạn", HttpStatus.BAD_REQUEST);
+        }
+
+        // Đổi mật khẩu mới và xóa token
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        user.setResetToken(null);
+        user.setResetTokenExpiry(null);
         userRepository.save(user);
     }
 }
