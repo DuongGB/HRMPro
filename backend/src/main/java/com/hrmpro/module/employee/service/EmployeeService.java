@@ -85,8 +85,11 @@ public class EmployeeService {
      */
     @Transactional
     public EmployeeResponse createEmployee(EmployeeCreateRequest request) {
-        if (employeeRepository.existsByEmployeeCode(request.getEmployeeCode())) {
-            throw new AppException("Mã nhân viên '" + request.getEmployeeCode() + "' đã tồn tại", HttpStatus.BAD_REQUEST);
+        String finalEmployeeCode = request.getEmployeeCode();
+        if (finalEmployeeCode == null || finalEmployeeCode.trim().isEmpty()) {
+            finalEmployeeCode = "EMP" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+        } else if (employeeRepository.existsByEmployeeCode(finalEmployeeCode)) {
+            throw new AppException("Mã nhân viên '" + finalEmployeeCode + "' đã tồn tại", HttpStatus.BAD_REQUEST);
         }
 
         if (employeeRepository.existsByEmail(request.getEmail())) {
@@ -121,7 +124,7 @@ public class EmployeeService {
                 + "]}";
 
         Employee employee = Employee.builder()
-                .employeeCode(request.getEmployeeCode())
+                .employeeCode(finalEmployeeCode)
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .email(request.getEmail())
