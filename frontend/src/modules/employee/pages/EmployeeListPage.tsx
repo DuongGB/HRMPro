@@ -132,7 +132,7 @@ const EmployeeListPage: React.FC = () => {
 
   const handleCreateEmployee = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!empCode || !firstName || !lastName || !email || !hireDate) {
+    if (!firstName || !lastName || !email || !hireDate) {
       toast.error("Vui lòng nhập đầy đủ các trường bắt buộc");
       return;
     }
@@ -183,13 +183,12 @@ const EmployeeListPage: React.FC = () => {
                 <form onSubmit={handleCreateEmployee} className="space-y-4 py-2">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <Label htmlFor="emp-code">Mã nhân viên *</Label>
+                      <Label htmlFor="emp-code">Mã nhân viên</Label>
                       <Input 
                         id="emp-code" 
-                        placeholder="Ví dụ: EMP-001..." 
+                        placeholder="Hệ thống tự động sinh" 
                         value={empCode}
-                        onChange={(e) => setEmpCode(e.target.value)}
-                        required
+                        disabled
                       />
                     </div>
                     <div className="space-y-1">
