@@ -14,7 +14,7 @@ Trước khi thực hiện trên phần mềm, bạn cần có sẵn các thông
 ## Giai Đoạn 2: Tạo Hồ Sơ Nhân Sự 
 *Mục đích: Lưu trữ dữ liệu thông tin lý lịch và công tác của nhân sự vào hệ thống.*
 
-1. Đăng nhập vào hệ thống HRMPro với tài khoản Quản lý nhân sự (**HR_ADMIN**) hoặc Nhân sự (**HR_STAFF**).
+1. Đăng nhập vào hệ thống HRMPro với tài khoản Quản trị hệ thống (**SUPER_ADMIN**) hoặc Quản lý nhân sự (**HR_ADMIN**).
 2. Trên thanh công cụ bên trái, chọn module **Nhân sự (Employees)** > Chọn **Danh sách nhân viên**.
 3. Nhấn vào nút **[ + Thêm Mới ]** ở góc trên cùng bên phải màn hình.
 4. Điền các thông tin theo biểu mẫu:
@@ -27,17 +27,18 @@ Trước khi thực hiện trên phần mềm, bạn cần có sẵn các thông
 
 ## Giai Đoạn 3: Cấp Tài Khoản Hệ Thống
 *Mục đích: Cấp quyền đăng nhập phần mềm cho hồ sơ nhân sự vừa tạo ở Giai đoạn 2.*
+*Lưu ý Quan trọng: Khác với việc tạo hồ sơ, **chỉ có Quản trị hệ thống (SUPER_ADMIN)** mới có quyền tạo và phân quyền tài khoản đăng nhập nhằm đảm bảo an ninh mạng.*
 
-1. Mở trang chi tiết của nhân viên vừa tạo. Chuyển sang tab **Tài khoản (Account)**.
-2. Nhấn nút **[ Cấp Tài Khoản Đăng Nhập ]**.
-3. Hệ thống sẽ tự động điền Tên đăng nhập (Username) chính là **Email công ty** của nhân viên.
-4. **Chọn quyền hạn (Role)**:
+1. Đăng nhập bằng tài khoản **SUPER_ADMIN**. Trên thanh công cụ, chọn module **Quản trị hệ thống** > Chọn **Người dùng (Users)**.
+2. Nhấn nút **[ + Tạo Tài Khoản ]**.
+3. **Liên kết hồ sơ**: Chọn đúng tên Nhân viên vừa tạo ở Giai đoạn 2 (để hệ thống đồng bộ dữ liệu hồ sơ với tài khoản).
+4. **Thiết lập thông tin đăng nhập**:
+   - **Tên đăng nhập (Username)**: Khuyến nghị nhập chính là **Email công ty** của nhân viên.
+   - **Cấp mật khẩu**: Chọn tự động gửi qua Email, hoặc nhập mật khẩu mặc định (Ví dụ: `Hrmpro@123`) và báo thủ công cho nhân viên.
+5. **Chọn quyền hạn (Role)**:
    - Mặc định chọn **EMPLOYEE (Nhân viên)** để họ tự quản lý dữ liệu cá nhân (chấm công, nghỉ phép).
    - *Lưu ý:* Chỉ cấp quyền MANAGER nếu người này là Trưởng phòng, hoặc cấp HR_STAFF nếu họ thuộc bộ phận Nhân sự.
-5. **Cấp mật khẩu**:
-   - Khuyên dùng: Chọn tùy chọn **"Hệ thống tự động tạo mật khẩu ngẫu nhiên và gửi qua Email"**.
-   - Hoặc bạn có thể nhập mật khẩu mặc định (Ví dụ: `Hrmpro@123`) và báo thủ công cho nhân viên.
-6. Nhấn **[ Xác nhận ]**. Trạng thái tài khoản sẽ chuyển thành *Chờ kích hoạt*.
+6. Nhấn **[ Xác nhận ]**. Trạng thái tài khoản sẽ được ghi nhận và chờ nhân viên đăng nhập.
 
 ---
 
