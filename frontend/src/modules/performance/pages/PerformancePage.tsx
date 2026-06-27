@@ -62,7 +62,7 @@ const CYCLE_STATUS_LABELS: Record<string, string> = {
 };
 
 const CYCLE_STATUS_COLORS: Record<string, string> = {
-  DRAFT: "bg-gray-500/10 text-gray-500 border-gray-500/20",
+  DRAFT: "bg-muted text-muted-foreground border-border",
   ACTIVE: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 animate-pulse",
   COMPLETED: "bg-blue-500/10 text-blue-500 border-blue-500/20",
 };
@@ -400,7 +400,7 @@ const PerformancePage: React.FC = () => {
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
                               {review.status === "PENDING" && (
-                                <Button size="sm" onClick={() => openSelfEvalModal(review)} className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-medium">
+                                <Button size="sm" onClick={() => openSelfEvalModal(review)} className="bg-amber-500 text-slate-950 hover:bg-amber-400 dark:bg-amber-400 dark:text-slate-950 dark:hover:bg-amber-300 font-medium">
                                   Tự đánh giá
                                 </Button>
                               )}

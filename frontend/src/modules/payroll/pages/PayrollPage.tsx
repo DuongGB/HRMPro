@@ -46,7 +46,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const RUN_STATUS_COLORS: Record<string, string> = {
-  DRAFT: "bg-gray-500/10 text-gray-500 border-gray-500/20",
+  DRAFT: "bg-muted text-muted-foreground border-border",
   PROCESSING: "bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse",
   COMPLETED: "bg-blue-500/10 text-blue-500 border-blue-500/20",
   PUBLISHED: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
@@ -1082,7 +1082,7 @@ const PayrollPage: React.FC = () => {
                   type="checkbox"
                   checked={configIsActive}
                   onChange={(e) => setConfigIsActive(e.target.checked)}
-                  className="rounded border-gray-300 text-primary focus:ring-primary"
+                  className="rounded border-input bg-background text-primary focus:ring-primary dark:bg-background/80"
                 />
                 <Label htmlFor="config-active" className="cursor-pointer select-none">Kích hoạt làm cấu hình mặc định hiện tại</Label>
               </div>
@@ -1167,7 +1167,7 @@ const PayrollPage: React.FC = () => {
                   type="checkbox"
                   checked={allowanceIsTaxable}
                   onChange={(e) => setAllowanceIsTaxable(e.target.checked)}
-                  className="rounded border-gray-300 text-primary focus:ring-primary"
+                  className="rounded border-input bg-background text-primary focus:ring-primary dark:bg-background/80"
                 />
                 <Label htmlFor="allowance-tax" className="cursor-pointer select-none">Có chịu thuế TNCN (is Taxable)</Label>
               </div>
@@ -1268,8 +1268,8 @@ const PayrollPage: React.FC = () => {
 
                 {/* Net Salary Highlight */}
                 <div className="flex justify-between items-baseline bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20 mt-4">
-                  <span className="font-extrabold text-sm text-emerald-800">THỰC NHẬN (NET SALARY):</span>
-                  <span className="font-extrabold text-xl text-emerald-700">{formatMoney(viewingPayslip.netSalary)}</span>
+                  <span className="font-extrabold text-sm text-emerald-700 dark:text-emerald-300">THỰC NHẬN (NET SALARY):</span>
+                  <span className="font-extrabold text-xl text-emerald-700 dark:text-emerald-300">{formatMoney(viewingPayslip.netSalary)}</span>
                 </div>
               </div>
 

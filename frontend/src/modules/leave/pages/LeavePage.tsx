@@ -42,7 +42,7 @@ const STATUS_BADGES: Record<string, string> = {
   PENDING: "bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse",
   APPROVED: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
   REJECTED: "bg-destructive/10 text-destructive border-destructive/20",
-  CANCELLED: "bg-gray-500/10 text-gray-500 border-gray-500/20",
+  CANCELLED: "bg-muted text-muted-foreground border-border",
 };
 
 const STATUS_LABELS: Record<string, string> = {

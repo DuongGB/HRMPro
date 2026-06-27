@@ -22,7 +22,7 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children, allowedRoles }) =
     const hasPermission = user.roles.some((role) => allowedRoles.includes(role));
     if (!hasPermission) {
       return (
-        <div className="flex flex-col justify-center items-center h-screen bg-muted/40">
+        <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-muted/40 text-foreground dark:bg-background">
           <div className="text-center space-y-4">
             <h1 className="text-6xl font-bold text-primary">403</h1>
             <h2 className="text-2xl font-semibold tracking-tight">Từ chối truy cập</h2>

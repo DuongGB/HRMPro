@@ -57,7 +57,7 @@ const ROLE_OPTIONS = [
   { value: "HR_ADMIN", label: "HR Admin", color: "bg-orange-500/10 text-orange-500 border-orange-500/20" },
   { value: "HR_STAFF", label: "HR Staff", color: "bg-amber-500/10 text-amber-500 border-amber-500/20" },
   { value: "MANAGER", label: "Manager", color: "bg-blue-500/10 text-blue-500 border-blue-500/20" },
-  { value: "EMPLOYEE", label: "Employee", color: "bg-slate-500/10 text-slate-500 border-slate-500/20" },
+  { value: "EMPLOYEE", label: "Employee", color: "bg-muted text-muted-foreground border-border" },
   { value: "RECRUITER", label: "Recruiter", color: "bg-green-500/10 text-green-500 border-green-500/20" }
 ];
 

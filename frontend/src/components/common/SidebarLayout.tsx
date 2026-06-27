@@ -212,16 +212,16 @@ const SidebarLayout: React.FC = () => {
 
   return (
     <WebSocketProvider>
-      <div className="flex h-screen bg-muted/40">
+      <div className="flex min-h-[100dvh] bg-muted/40 text-foreground dark:bg-background">
         {/* Sider */}
         <aside
           className={cn(
-          "bg-background border-r transition-all duration-300 flex flex-col z-20",
+          "bg-background/95 border-r transition-all duration-300 flex flex-col z-20 backdrop-blur dark:bg-card/95 dark:border-border/80",
           collapsed ? "w-16" : "w-64"
         )}
       >
-        <div className="h-16 flex items-center justify-center border-b px-4">
-          <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center text-primary-foreground font-bold shrink-0">
+        <div className="h-16 flex items-center justify-center border-b px-4 dark:border-border/80">
+          <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center text-primary-foreground font-bold shadow-sm shadow-primary/20 shrink-0">
             H
           </div>
           {!collapsed && (
@@ -230,7 +230,7 @@ const SidebarLayout: React.FC = () => {
             </span>
           )}
         </div>
-        <nav className="flex-1 overflow-y-auto py-4 flex flex-col gap-1 px-2">
+          <nav className="flex-1 overflow-y-auto py-4 flex flex-col gap-1 px-2">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.key || 
                             (item.key !== "/" && location.pathname.startsWith(item.key));
@@ -242,7 +242,7 @@ const SidebarLayout: React.FC = () => {
                   "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
                   isActive
                     ? "bg-primary text-primary-foreground font-medium"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground dark:hover:bg-muted/70",
                   collapsed && "justify-center"
                 )}
                 title={collapsed ? item.label : undefined}
@@ -258,7 +258,7 @@ const SidebarLayout: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-16 bg-background border-b flex items-center justify-between px-4 z-10 shrink-0">
+        <header className="h-16 bg-background/95 border-b flex items-center justify-between px-4 z-10 shrink-0 backdrop-blur dark:bg-card/95 dark:border-border/80">
           <Button
             variant="ghost"
             size="icon"
@@ -306,7 +306,7 @@ const SidebarLayout: React.FC = () => {
         </header>
 
         {/* Scrollable Main Area */}
-        <main className="flex-1 overflow-auto overflow-x-hidden p-4 md:p-6 bg-muted/20">
+        <main className="flex-1 overflow-auto overflow-x-hidden bg-muted/20 p-4 md:p-6 dark:bg-background">
           <AnimatedOutlet />
         </main>
       </div>
