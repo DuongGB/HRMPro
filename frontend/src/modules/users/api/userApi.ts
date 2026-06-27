@@ -9,6 +9,7 @@ export interface UserResponse {
   isActive: boolean;
   roles: string[];
   createdAt: string;
+  lastLogin?: string;
 }
 
 export interface UserCreateRequest {

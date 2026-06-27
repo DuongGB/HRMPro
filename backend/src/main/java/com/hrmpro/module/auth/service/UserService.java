@@ -200,6 +200,7 @@ public class UserService {
                 .isActive(user.getIsActive())
                 .roles(roleNames)
                 .createdAt(user.getCreatedAt())
+                .lastLogin(user.getLastLogin())
                 .build();
     }
 }
