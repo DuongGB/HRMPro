@@ -57,7 +57,7 @@ const ROLE_OPTIONS = [
   { value: "HR_ADMIN", label: "HR Admin", color: "bg-orange-500/10 text-orange-500 border-orange-500/20" },
   { value: "HR_STAFF", label: "HR Staff", color: "bg-amber-500/10 text-amber-500 border-amber-500/20" },
   { value: "MANAGER", label: "Manager", color: "bg-blue-500/10 text-blue-500 border-blue-500/20" },
-  { value: "EMPLOYEE", label: "Employee", color: "bg-slate-500/10 text-slate-500 border-slate-500/20" },
+  { value: "EMPLOYEE", label: "Employee", color: "bg-muted text-muted-foreground border-border" },
   { value: "RECRUITER", label: "Recruiter", color: "bg-green-500/10 text-green-500 border-green-500/20" }
 ];
 
@@ -335,11 +335,17 @@ const UserManagementPage: React.FC = () => {
   };
 
   // Lọc tìm kiếm client-side đơn giản cho trải nghiệm nhanh
-  const filteredUsers = data?.content.filter(user => 
-    user.username.toLowerCase().includes(search.toLowerCase()) ||
-    (user.employeeName && user.employeeName.toLowerCase().includes(search.toLowerCase())) ||
-    (user.employeeCode && user.employeeCode.toLowerCase().includes(search.toLowerCase()))
-  ) || [];
+  const filteredUsers = data?.content.filter(user => {
+    const searchLower = search.toLowerCase();
+    if (searchLower === "chưa kích hoạt" || searchLower === "chuakichhoat") {
+      return !user.isActive && !user.lastLogin;
+    }
+    return user.username.toLowerCase().includes(searchLower) ||
+      (user.employeeName && user.employeeName.toLowerCase().includes(searchLower)) ||
+      (user.employeeCode && user.employeeCode.toLowerCase().includes(searchLower));
+  }) || [];
+
+  const inactiveNewUsers = data?.content.filter(u => !u.isActive && !u.lastLogin) || [];
 
   return (
     <div className="space-y-6">
@@ -678,15 +684,69 @@ const UserManagementPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Alert Banner for inactive users */}
+      {inactiveNewUsers.length > 0 && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-amber-500/20 text-amber-600 rounded-lg shrink-0 mt-0.5">
+              <ShieldAlert size={20} className="animate-pulse" />
+            </div>
+            <div>
+              <h4 className="font-semibold text-amber-800 dark:text-amber-400 text-sm md:text-base">
+                Tài khoản nhân viên chưa kích hoạt
+              </h4>
+              <p className="text-amber-700 dark:text-amber-500 text-xs md:text-sm mt-0.5">
+                Phát hiện {inactiveNewUsers.length} tài khoản nhân viên mới chưa được kích hoạt. Hãy kích hoạt để nhân viên có thể truy cập hệ thống.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-amber-500/30 bg-background text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 hover:text-amber-800 text-xs font-medium"
+              onClick={() => setSearch("Chưa kích hoạt")}
+            >
+              Xem danh sách
+            </Button>
+            <Button
+              size="sm"
+              className="bg-amber-600 text-white hover:bg-amber-700 text-xs font-medium shadow-sm"
+              onClick={() => {
+                inactiveNewUsers.forEach(u => {
+                  toggleStatusMutation.mutate({ id: u.id, isActive: true });
+                });
+              }}
+              disabled={toggleStatusMutation.isPending}
+            >
+              {toggleStatusMutation.isPending && <Loader2 size={12} className="animate-spin mr-1" />}
+              Kích hoạt tất cả
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Filter & Search */}
-      <div className="flex items-center max-w-sm gap-2 bg-background border rounded-md px-3 py-1">
-        <Search size={18} className="text-muted-foreground" />
-        <Input 
-          placeholder="Tìm kiếm tài khoản..." 
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-0 h-8 text-sm"
-        />
+      <div className="flex items-center max-w-sm gap-2 bg-background border rounded-md px-3 py-1 justify-between">
+        <div className="flex items-center gap-2 flex-1">
+          <Search size={18} className="text-muted-foreground shrink-0" />
+          <Input 
+            placeholder="Tìm kiếm tài khoản..." 
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-0 h-8 text-sm w-full"
+          />
+        </div>
+        {search && (
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-6 w-6 text-muted-foreground hover:text-foreground shrink-0 rounded-full"
+            onClick={() => setSearch("")}
+          >
+            <X size={14} />
+          </Button>
+        )}
       </div>
 
       {/* Main Table */}
@@ -748,9 +808,14 @@ const UserManagementPage: React.FC = () => {
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
                         Đang hoạt động
                       </Badge>
+                    ) : !user.lastLogin ? (
+                      <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/10 gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block animate-pulse"></span>
+                        Chưa kích hoạt
+                      </Badge>
                     ) : (
                       <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/10 gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-destructive inline-block animate-pulse"></span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-destructive inline-block"></span>
                         Đã khóa
                       </Badge>
                     )}

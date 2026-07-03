@@ -124,7 +124,7 @@ const DashboardPage: React.FC = () => {
     return (
       <div className="flex justify-center items-center min-h-[60vh]">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <span className="ml-2 text-gray-400">Đang tải dữ liệu báo cáo thống kê...</span>
+        <span className="ml-2 text-muted-foreground">Đang tải dữ liệu báo cáo thống kê...</span>
       </div>
     );
   }

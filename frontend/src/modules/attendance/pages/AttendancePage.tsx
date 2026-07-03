@@ -238,7 +238,7 @@ const CalendarDayCell: React.FC<CalendarDayCellProps> = ({ date, isCurrentMonth,
                 key={log.id} 
                 className="flex items-center gap-1 text-[9px] text-muted-foreground truncate"
               >
-                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT_COLORS[log.status] || "bg-gray-400"}`} />
+                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT_COLORS[log.status] || "bg-muted-foreground"}`} />
                 <span className="truncate">{log.employeeName}</span>
               </div>
             ))}

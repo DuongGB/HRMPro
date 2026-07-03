@@ -20,4 +20,5 @@ public class UserResponse {
     private Boolean isActive;
     private Set<String> roles;
     private LocalDateTime createdAt;
+    private LocalDateTime lastLogin;
 }

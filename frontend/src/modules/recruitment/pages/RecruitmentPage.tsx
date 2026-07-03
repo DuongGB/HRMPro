@@ -62,7 +62,7 @@ const JOB_STATUS_COLORS: Record<string, string> = {
 const INTERVIEW_RESULT_COLORS: Record<string, string> = {
   PASSED: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
   FAILED: "bg-rose-500/10 text-rose-500 border-rose-500/20",
-  NO_SHOW: "bg-gray-500/10 text-gray-500 border-gray-500/20",
+  NO_SHOW: "bg-muted text-muted-foreground border-border",
   RESCHEDULED: "bg-amber-500/10 text-amber-500 border-amber-500/20",
 };
 
